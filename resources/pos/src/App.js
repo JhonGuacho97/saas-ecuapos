@@ -12,6 +12,7 @@ import { addRTLSupport, getDefaultRouteForPermissions } from "./shared/sharedMet
 import Login from "./components/auth/Login";
 import ResetPassword from "./components/auth/ResetPassword";
 import ForgotPassword from "./components/auth/ForgotPassword";
+import Onboarding from "./components/auth/Onboarding";
 import AdminApp from "./AdminApp";
 import useLanguage from "./hooks/useLanguage";
 
@@ -78,6 +79,7 @@ function App() {
             >
                 <Routes>
                     <Route path="/login" element={<Login />} />
+                    <Route path="/crear-cuenta" element={<Onboarding />} />
                     <Route 
                         path="reset-password/:token/:email"
                         element={<ResetPassword />}

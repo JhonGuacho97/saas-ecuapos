@@ -42,6 +42,7 @@ use App\Http\Controllers\API\SriController;
 use App\Http\Controllers\API\SriConfigController;
 use App\Http\Controllers\API\StoreAPIController;
 use App\Http\Controllers\API\OrganizationAPIController;
+use App\Http\Controllers\API\SaaSOnboardingController;
 use App\Http\Controllers\API\CatalogSettingAPIController;
 use App\Http\Controllers\API\CatalogOrderAPIController;
 use App\Http\Controllers\API\PublicCatalogController;
@@ -727,6 +728,9 @@ Route::middleware([
 ])->post('offline-sync/customers', [OfflineCustomerSyncController::class, 'store']);
 
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
+Route::post('onboarding/register', [SaaSOnboardingController::class, 'store'])
+    ->middleware('throttle:3,1')
+    ->name('saas.onboarding.register');
 
 Route::post(
     '/forgot-password',

@@ -20,7 +20,7 @@ export default {
                 if (token) {
                     config.headers['Authorization'] = `Bearer ${token}`;
                 } else {
-                    if (!window.location.href.includes('login') && !window.location.href.includes('reset-password') && !window.location.href.includes('forgot-password')) {
+                    if (!window.location.href.includes('login') && !window.location.href.includes('reset-password') && !window.location.href.includes('forgot-password') && !window.location.href.includes('crear-cuenta')) {
                         window.location.href = environment.URL + '#/' + 'login';
                     }
                 }

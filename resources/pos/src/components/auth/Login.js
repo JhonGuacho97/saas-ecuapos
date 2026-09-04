@@ -255,6 +255,11 @@ const Login = () => {
                             </button>
                         </form>
 
+                        <div className="lp-signup">
+                            <span>¿Aún no tienes una cuenta?</span>
+                            <Link to="/crear-cuenta">Crear empresa</Link>
+                        </div>
+
                         <div className="lp-card-foot">
                             <ShieldIcon />
                             <span>Conexión segura · Datos protegidos</span>

@@ -43,7 +43,7 @@ La migración inicial trata toda la base instalada como un solo cliente:
 1. **Fundación tenant:** organización, membresías, resolución segura de
    contexto y aislamiento de tiendas. Implementada.
 2. **Onboarding:** registro del propietario, creación atómica de organización,
-   tienda, almacén, configuración base y usuario administrador.
+   tienda, almacén, configuración base y usuario administrador. Implementada.
 3. **Planes y límites:** catálogo de planes, funcionalidades habilitadas,
    límites de usuarios/tiendas/almacenes y periodo de prueba.
 4. **Suscripción y cobros:** ciclo de suscripción, renovaciones, comprobantes,
@@ -53,3 +53,24 @@ La migración inicial trata toda la base instalada como un solo cliente:
 6. **Operación SaaS:** colas, tareas programadas, backups, observabilidad,
    auditoría y estrategia de despliegue sin interrupciones.
 
+## Onboarding implementado
+
+El alta pública está disponible en `/crear-cuenta` y usa
+`POST /api/onboarding/register`. El proceso se ejecuta dentro de una única
+transacción: si falla cualquier paso, no queda una empresa creada a medias.
+
+Cada registro nuevo prepara:
+
+- organización y membresía `OWNER`;
+- tienda principal y almacén principal;
+- propietario activo, verificado y con idioma español;
+- rol administrador aislado por tienda con los permisos disponibles;
+- consumidor final, caja principal y catálogo inicialmente desactivado;
+- configuración base de Ecuador, dólar estadounidense y marca EcuaPos.
+
+Los datos fiscales sensibles no se heredan de otra organización. El RUC,
+ambiente SRI, firma electrónica, claves, secuenciales y datos legales deben ser
+configurados expresamente por el propietario después del primer acceso.
+
+El registro puede deshabilitarse sin cambiar código mediante
+`SAAS_SELF_REGISTRATION_ENABLED=false`.

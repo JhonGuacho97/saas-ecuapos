@@ -391,6 +391,47 @@ export const loginStyles = `
 }
 `;
 
+export const onboardingStyles = `${loginStyles}
+.ob-root { grid-template-columns: minmax(360px, .82fr) minmax(0, 1.18fr); }
+.ob-aside { padding: 52px 56px; }
+.ob-main { align-items: flex-start; overflow-y: auto; }
+.ob-card { max-width: 680px; padding: 18px 0; }
+.ob-topline { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; color:var(--lp-muted); font-size:12px; font-weight:600; }
+.ob-back { color:var(--lp-accent); }
+.ob-progress { height:4px; background:#E8EDF5; border-radius:99px; overflow:hidden; margin-bottom:28px; }
+.ob-progress i { display:block; height:100%; background:var(--lp-accent); border-radius:inherit; transition:width .25s ease; }
+.ob-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:16px; }
+.ob-full { grid-column:1/-1; }
+.ob-server-error { padding:11px 13px; border:1px solid #F3B8B8; border-radius:10px; background:#FFF5F5; color:#B42318; font-size:13px; margin-bottom:18px; }
+.ob-benefits { display:grid; gap:10px; margin-top:34px; }
+.ob-benefits div { display:flex; align-items:center; gap:12px; padding:14px 16px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.14); border-radius:12px; color:white; }
+.ob-benefits b { font-family:var(--lp-font-mono); font-size:11px; color:#BFD4FF; }
+.ob-benefits span { font-size:13px; font-weight:500; }
+.ob-aside-note { color:rgba(255,255,255,.65); font-size:12px; }
+.ob-terms { display:flex; align-items:flex-start; gap:9px; padding:11px 12px; background:#F7F9FC; border:1px solid var(--lp-line); border-radius:10px; font-size:12.5px; color:var(--lp-muted); cursor:pointer; }
+.ob-terms input { margin-top:2px; accent-color:var(--lp-accent); }
+.ob-terms--error { border-color:#DC4C4C; }
+.ob-actions { display:grid; grid-template-columns:120px 1fr; gap:12px; margin-top:8px; }
+.ob-actions .lp-btn { margin-top:0; }
+.ob-secondary { height:46px; border:1px solid var(--lp-line); border-radius:10px; background:white; color:var(--lp-text); font-weight:600; cursor:pointer; }
+.ob-secondary:hover { background:#F7F9FC; }
+.lp-signup { display:flex; justify-content:center; gap:5px; margin-top:20px; font-size:13px; color:var(--lp-muted); }
+.lp-signup a { color:var(--lp-accent); font-weight:600; }
+@media (max-width:1024px) {
+  .ob-root { grid-template-columns:1fr; }
+  .ob-main { align-items:center; }
+  .ob-card { max-width:680px; }
+}
+@media (max-width:620px) {
+  .ob-main { padding:22px 18px; }
+  .ob-form-grid { grid-template-columns:1fr; }
+  .ob-full { grid-column:auto; }
+  .ob-form-grid > div:empty { display:none; }
+  .ob-actions { grid-template-columns:1fr; }
+  .ob-secondary { order:2; }
+}
+`;
+
 export const ForgotPasswordStyles = `
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
