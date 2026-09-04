@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -28,6 +29,7 @@ class Store extends BaseModel
     const JSON_API_TYPE = 'stores';
 
     protected $fillable = [
+        'organization_id',
         'name',
         'slug',
         'is_active',
@@ -54,6 +56,7 @@ class Store extends BaseModel
     public function prepareAttributes(): array
     {
         return [
+            'organization_id' => $this->organization_id,
             'name' => $this->name,
             'slug' => $this->slug,
             'is_active' => $this->is_active,
@@ -61,6 +64,11 @@ class Store extends BaseModel
             'created_at' => $this->created_at,
             'users_count' => $this->users_count ?? null,
         ];
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
     }
 
     public function warehouses(): HasMany

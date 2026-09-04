@@ -309,3 +309,25 @@ if (! function_exists('requireCurrentStoreId')) {
         return $storeId;
     }
 }
+
+if (! function_exists('currentOrganizationId')) {
+    /** Organización SaaS validada para la petición actual. */
+    function currentOrganizationId(): ?int
+    {
+        return request()?->attributes->get('current_organization_id');
+    }
+}
+
+if (! function_exists('requireCurrentOrganizationId')) {
+    function requireCurrentOrganizationId(): int
+    {
+        $organizationId = currentOrganizationId();
+        if ($organizationId === null) {
+            throw new \Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException(
+                'No se pudo determinar la organización activa.'
+            );
+        }
+
+        return $organizationId;
+    }
+}

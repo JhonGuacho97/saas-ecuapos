@@ -37,6 +37,7 @@ export const fetchMyStores = () => async (dispatch) => {
 
         if (savedStore && savedStore.is_active) {
             dispatch({ type: storeActionType.SET_CURRENT_STORE_ID, payload: savedId });
+            persistOrganization(dispatch, savedStore.organization_id);
             return;
         }
 
@@ -49,6 +50,8 @@ export const fetchMyStores = () => async (dispatch) => {
             dispatch(setCurrentStore(activeStores[0].id));
         } else if (navigator.onLine) {
             localStorage.removeItem(Tokens.CURRENT_STORE_ID);
+            localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
+            dispatch({ type: storeActionType.SET_CURRENT_ORGANIZATION_ID, payload: null });
         }
     };
 
@@ -82,7 +85,23 @@ export const fetchMyStores = () => async (dispatch) => {
  * tienda anterior (listados en Redux, formularios abiertos, etc.)
  * sobreviva al cambio de contexto.
  */
-export const setCurrentStore = (storeId) => (dispatch) => {
+export const setCurrentStore = (storeId) => (dispatch, getState) => {
     localStorage.setItem(Tokens.CURRENT_STORE_ID, String(storeId));
     dispatch({ type: storeActionType.SET_CURRENT_STORE_ID, payload: String(storeId) });
+    const selectedStore = getState().myStores.stores.find((store) => String(store.id) === String(storeId));
+    persistOrganization(dispatch, selectedStore?.organization_id);
+};
+
+const persistOrganization = (dispatch, organizationId) => {
+    if (organizationId === null || organizationId === undefined || organizationId === '') {
+        localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
+        dispatch({ type: storeActionType.SET_CURRENT_ORGANIZATION_ID, payload: null });
+        return;
+    }
+
+    localStorage.setItem(Tokens.CURRENT_ORGANIZATION_ID, String(organizationId));
+    dispatch({
+        type: storeActionType.SET_CURRENT_ORGANIZATION_ID,
+        payload: String(organizationId),
+    });
 };

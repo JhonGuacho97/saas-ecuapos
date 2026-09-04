@@ -156,6 +156,16 @@ class AppBaseController extends Controller
         return requireCurrentStoreId();
     }
 
+    protected function currentOrganizationId(): ?int
+    {
+        return currentOrganizationId();
+    }
+
+    protected function requireCurrentOrganizationId(): int
+    {
+        return requireCurrentOrganizationId();
+    }
+
     /**
      * SalesPayment no tiene warehouse_id propio (solo sale_id) --
      * scopeQueryToCurrentStore() no le sirve directo, así que se filtra

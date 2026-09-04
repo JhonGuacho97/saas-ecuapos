@@ -139,6 +139,7 @@ export const authActionType = {
 export const storeActionType = {
     FETCH_MY_STORES: "FETCH_MY_STORES",
     SET_CURRENT_STORE_ID: "SET_CURRENT_STORE_ID",
+    SET_CURRENT_ORGANIZATION_ID: "SET_CURRENT_ORGANIZATION_ID",
 };
 
 export const configActionType = {
@@ -603,6 +604,7 @@ export const Tokens = {
     LANGUAGE: "language",
     UPDATED_LANGUAGE: "updated_language",
     CURRENT_STORE_ID: "current_store_id",
+    CURRENT_ORGANIZATION_ID: "current_organization_id",
     ROLE_NAME: "role_name",
 };
 

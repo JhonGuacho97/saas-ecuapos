@@ -28,6 +28,7 @@ export const loginAction = (user, navigate, setLoading) => async (dispatch) => {
             // permisos para esa tienda" en el primer login tras crear un
             // usuario para otra tienda distinta a la que estaba activa.
             localStorage.removeItem(Tokens.CURRENT_STORE_ID);
+            localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
 
             localStorage.setItem(Tokens.ADMIN, response.data.data.token);
             localStorage.setItem(Tokens.GET_PERMISSIONS, response.data.data.permissions);
@@ -94,6 +95,7 @@ export const logoutAction = (token, navigate) => async (dispatch) => {
             localStorage.removeItem(Tokens.UPDATED_LAST_NAME);
             localStorage.removeItem(Tokens.USER_IMAGE_URL);
             localStorage.removeItem(Tokens.CURRENT_STORE_ID);
+            localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
             localStorage.removeItem(Tokens.ROLE_NAME);
             navigate('/login');
             dispatch(addToast({ text: getFormattedMessage('logout.success.message') }));

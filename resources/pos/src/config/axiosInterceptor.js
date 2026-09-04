@@ -31,6 +31,10 @@ export default {
                 if (storeId && !config.headers['X-Store-Id']) {
                     config.headers['X-Store-Id'] = storeId;
                 }
+                const organizationId = localStorage.getItem(Tokens.CURRENT_ORGANIZATION_ID);
+                if (organizationId && !config.headers['X-Organization-Id']) {
+                    config.headers['X-Organization-Id'] = organizationId;
+                }
                 if (isFormData) {
                     config.headers['Content-Type'] = 'multipart/form-data';
                 }

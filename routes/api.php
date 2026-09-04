@@ -41,6 +41,7 @@ use App\Http\Controllers\API\SmsTemplateAPIController;
 use App\Http\Controllers\API\SriController;
 use App\Http\Controllers\API\SriConfigController;
 use App\Http\Controllers\API\StoreAPIController;
+use App\Http\Controllers\API\OrganizationAPIController;
 use App\Http\Controllers\API\CatalogSettingAPIController;
 use App\Http\Controllers\API\CatalogOrderAPIController;
 use App\Http\Controllers\API\PublicCatalogController;
@@ -639,6 +640,8 @@ Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
         ->middleware('permission:manage_reports');
 
     Route::get('config', [UserAPIController::class, 'config']);
+    Route::get('my-organizations', [OrganizationAPIController::class, 'mine']);
+    Route::get('current-organization', [OrganizationAPIController::class, 'current']);
     Route::get('my-stores', [StoreAPIController::class, 'misTiendas']);
 
     // POS Register routes

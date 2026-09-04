@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Organization;
+use App\Models\Store;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -73,6 +75,44 @@ class ResolveActiveStore
 
         if ($resolvedStoreId !== null) {
             $request->attributes->set('current_store_id', $resolvedStoreId);
+        }
+
+        $organizationIds = $user->organizations()
+            ->where('organizations.is_active', true)
+            ->wherePivot('status', Organization::STATUS_ACTIVE)
+            ->pluck('organizations.id');
+        $requestedOrganizationId = $request->header('X-Organization-Id');
+        $resolvedOrganizationId = null;
+
+        if ($resolvedStoreId !== null) {
+            $storeOrganizationId = Store::whereKey($resolvedStoreId)->value('organization_id');
+
+            // Las tiendas sin organización solo pueden existir como datos
+            // transitorios/fixtures heredados. Una tienda SaaS real exige
+            // además membresía activa en su organización.
+            if ($storeOrganizationId !== null) {
+                if (! $organizationIds->contains((int) $storeOrganizationId)) {
+                    throw new AccessDeniedHttpException('No tiene acceso a la organización de esta tienda.');
+                }
+                $resolvedOrganizationId = (int) $storeOrganizationId;
+            }
+        } elseif ($requestedOrganizationId !== null && $requestedOrganizationId !== '') {
+            if (! $organizationIds->contains((int) $requestedOrganizationId)) {
+                throw new AccessDeniedHttpException('No tiene acceso a esta organización.');
+            }
+            $resolvedOrganizationId = (int) $requestedOrganizationId;
+        } elseif ($organizationIds->count() === 1) {
+            $resolvedOrganizationId = (int) $organizationIds->first();
+        }
+
+        if ($requestedOrganizationId !== null && $requestedOrganizationId !== ''
+            && $resolvedOrganizationId !== null
+            && (int) $requestedOrganizationId !== $resolvedOrganizationId) {
+            throw new AccessDeniedHttpException('La tienda no pertenece a la organización seleccionada.');
+        }
+
+        if ($resolvedOrganizationId !== null) {
+            $request->attributes->set('current_organization_id', $resolvedOrganizationId);
         }
 
         setPermissionsTeamId($resolvedStoreId);

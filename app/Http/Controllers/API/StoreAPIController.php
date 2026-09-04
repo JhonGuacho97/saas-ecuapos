@@ -14,6 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * CRUD de tiendas -- pantalla "Stores" del admin (ver captura de
@@ -43,8 +44,9 @@ class StoreAPIController extends AppBaseController
         // igual rechaza cualquier intento de resolverlas por
         // X-Store-Id, sin importar lo que mande el frontend.
         $stores = Auth::user()->stores()
+            ->when(currentOrganizationId(), fn ($query, $organizationId) => $query->where('stores.organization_id', $organizationId))
             ->orderBy('name')
-            ->get(['stores.id', 'stores.name', 'stores.slug', 'stores.is_active', 'stores.is_default']);
+            ->get(['stores.id', 'stores.organization_id', 'stores.name', 'stores.slug', 'stores.is_active', 'stores.is_default']);
 
         return $this->sendResponse($stores, 'Tiendas retrieved successfully');
     }
@@ -52,7 +54,10 @@ class StoreAPIController extends AppBaseController
     public function index(Request $request): StoreCollection
     {
         $perPage = getPageSize($request);
-        $stores = $this->storeRepository->withCount('users')->paginate($perPage);
+        $stores = $this->storeRepository
+            ->where('organization_id', $this->requireCurrentOrganizationId())
+            ->withCount('users')
+            ->paginate($perPage);
         StoreResource::usingWithCollection();
 
         return new StoreCollection($stores);
@@ -111,11 +116,14 @@ class StoreAPIController extends AppBaseController
 
     public function show(Store $store): StoreResource
     {
+        $this->authorizeOrganizationStore($store);
+
         return new StoreResource($store);
     }
 
     public function update(UpdateStoreRequest $request, Store $store): StoreResource
     {
+        $this->authorizeOrganizationStore($store);
         $input = $request->all();
 
         // "Predeterminada" es un singleton -- solo una tienda puede
@@ -124,7 +132,10 @@ class StoreAPIController extends AppBaseController
         // a las demás en la misma operación en vez de depender de un
         // constraint de BD, mismo criterio que el resto de este módulo.
         if (!empty($input['is_default'])) {
-            Store::where('id', '!=', $store->id)->where('is_default', true)->update(['is_default' => false]);
+            Store::where('organization_id', $store->organization_id)
+                ->where('id', '!=', $store->id)
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
         }
 
         $updated = $this->storeRepository->update($input, $store->id);
@@ -134,6 +145,7 @@ class StoreAPIController extends AppBaseController
 
     public function destroy(Store $store): JsonResponse
     {
+        $this->authorizeOrganizationStore($store);
         // store_id en warehouses/products/etc es onDelete('restrict') --
         // MySQL ya lo bloquea, esto solo lo convierte en un mensaje
         // legible en vez de un error 500 crudo.
@@ -149,12 +161,19 @@ class StoreAPIController extends AppBaseController
         // promueve la más antigua de las que quedan para no dejar ese
         // hueco.
         if ($wasDefault) {
-            $nextDefaultId = Store::orderBy('id')->value('id');
+            $nextDefaultId = Store::where('organization_id', $store->organization_id)->orderBy('id')->value('id');
             if ($nextDefaultId !== null) {
                 Store::whereKey($nextDefaultId)->update(['is_default' => true]);
             }
         }
 
         return $this->sendSuccess('Store deleted successfully');
+    }
+
+    private function authorizeOrganizationStore(Store $store): void
+    {
+        if ((int) $store->organization_id !== $this->requireCurrentOrganizationId()) {
+            throw new AccessDeniedHttpException('No tiene acceso a esta tienda.');
+        }
     }
 }

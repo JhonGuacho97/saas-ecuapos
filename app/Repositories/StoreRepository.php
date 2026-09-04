@@ -42,6 +42,7 @@ class StoreRepository extends BaseRepository
      */
     public function storeStore($input)
     {
+        $input['organization_id'] = requireCurrentOrganizationId();
         $input['slug'] = $this->uniqueSlug($input['name']);
         $input['is_active'] = $input['is_active'] ?? true;
 

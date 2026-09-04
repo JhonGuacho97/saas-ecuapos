@@ -185,6 +185,14 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
             ->withTimestamps();
     }
 
+    /** Organizaciones SaaS a las que pertenece el usuario. */
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class, 'organization_user')
+            ->withPivot(['role', 'status'])
+            ->withTimestamps();
+    }
+
     /**
      * Sub-alcance opcional dentro de las tiendas a las que el usuario ya
      * tiene acceso. Sin ninguna fila = ve todas las sucursales de sus
