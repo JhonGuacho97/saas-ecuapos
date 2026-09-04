@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Cliente SaaS y frontera superior de aislamiento. Una organización puede
@@ -42,5 +43,10 @@ class Organization extends BaseModel
         return $this->belongsToMany(User::class, 'organization_user')
             ->withPivot(['role', 'status'])
             ->withTimestamps();
+    }
+
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(OrganizationSubscription::class);
     }
 }

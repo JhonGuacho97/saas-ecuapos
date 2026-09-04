@@ -10,6 +10,8 @@ use App\Models\Language;
 use App\Models\Organization;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\SaaSPlan;
+use App\Models\OrganizationSubscription;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Models\User;
@@ -34,6 +36,16 @@ class OnboardingService
                     'name' => trim($input['organization_name']),
                     'slug' => $this->uniqueSlug(Organization::class, $input['organization_name'], 'organizacion'),
                     'is_active' => true,
+                ]);
+
+                $trialPlan = SaaSPlan::where('code', 'trial')->where('is_active', true)->firstOrFail();
+                OrganizationSubscription::create([
+                    'organization_id' => $organization->id,
+                    'saas_plan_id' => $trialPlan->id,
+                    'status' => OrganizationSubscription::STATUS_TRIALING,
+                    'starts_at' => now(),
+                    'trial_ends_at' => now()->addDays($trialPlan->trial_days),
+                    'electronic_documents_used' => 0,
                 ]);
 
                 $storeName = trim($input['store_name'] ?? '') ?: trim($input['organization_name']);

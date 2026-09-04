@@ -76,6 +76,45 @@ export const headerStyles = `
     box-shadow: 0 6px 18px rgba(47, 111, 237,0.3);
   }
 
+  .hdr-trial-badge {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 8px;
+    padding: 0 11px;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .hdr-trial-badge b {
+    padding-left: 6px;
+    border-left: 1px solid #bfdbfe;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .hdr-trial-badge--expired {
+    border-color: #fecaca;
+    background: #fff1f2;
+    color: #dc2626;
+  }
+  @media (max-width: 575.98px) {
+    .hdr-trial-badge {
+      width: 38px;
+      padding: 0;
+      margin-right: 4px;
+      justify-content: center;
+    }
+    .hdr-trial-badge b { border-left: 0; padding-left: 0; }
+    .hdr-trial-badge svg { display: none; }
+  }
+
   /* ── Selector de tienda / idioma (una sola línea: ícono + valor +
      flecha -- mismo componente visual para ambos) ── */
   .hdr-store-btn {

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Organization;
+use App\Models\OrganizationSubscription;
+use App\Models\SaaSPlan;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -120,11 +122,20 @@ class OrganizationIsolationTest extends TestCase
     {
         $suffix = Str::lower(Str::random(10));
 
-        return Organization::create([
+        $organization = Organization::create([
             'name' => "{$name} {$suffix}",
             'slug' => "org-{$suffix}",
             'is_active' => true,
         ]);
+        OrganizationSubscription::create([
+            'organization_id' => $organization->id,
+            'saas_plan_id' => SaaSPlan::where('code', 'legacy')->value('id'),
+            'status' => OrganizationSubscription::STATUS_ACTIVE,
+            'starts_at' => now(),
+            'electronic_documents_used' => 0,
+        ]);
+
+        return $organization;
     }
 
     private function store(Organization $organization, string $name): Store

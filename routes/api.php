@@ -86,7 +86,7 @@ Route::prefix('catalog/{store:slug}')->middleware('throttle:60,1')->group(functi
 });
 Route::get('electronic-invoices/{electronicInvoice}/ride', [ElectronicInvoiceController::class, 'ride']);
 Route::get('electronic-invoices/{electronicInvoice}/xml', [ElectronicInvoiceController::class, 'descargarXml']);
-Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
+Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->group(function () {
     Route::middleware(['abilities:*', 'permission:manage_sale|manage_pos_screen'])->prefix('offline-sync')->group(function () {
         Route::post('device-token', [OfflineSyncTokenController::class, 'store']);
         Route::delete('device-token', [OfflineSyncTokenController::class, 'destroy']);

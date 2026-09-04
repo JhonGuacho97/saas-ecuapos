@@ -10,6 +10,7 @@ use App\Http\Resources\StoreResource;
 use App\Models\Role;
 use App\Models\Store;
 use App\Repositories\StoreRepository;
+use App\Services\SaaS\EntitlementService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,10 @@ class StoreAPIController extends AppBaseController
 {
     private StoreRepository $storeRepository;
 
-    public function __construct(StoreRepository $storeRepository)
+    public function __construct(
+        StoreRepository $storeRepository,
+        private readonly EntitlementService $entitlements
+    )
     {
         $this->storeRepository = $storeRepository;
     }
@@ -66,8 +70,16 @@ class StoreAPIController extends AppBaseController
     public function store(CreateStoreRequest $request): StoreResource
     {
         $input = $request->all();
-        $store = $this->storeRepository->storeStore($input);
-        $this->grantCreatorAccess($store);
+        $store = $this->entitlements->withinResourceLimit(
+            $this->requireCurrentOrganizationId(),
+            EntitlementService::RESOURCE_STORES,
+            function () use ($input) {
+                $store = $this->storeRepository->storeStore($input);
+                $this->grantCreatorAccess($store);
+
+                return $store;
+            }
+        );
 
         return new StoreResource($store);
     }

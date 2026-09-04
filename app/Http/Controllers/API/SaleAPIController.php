@@ -262,8 +262,12 @@ class SaleAPIController extends AppBaseController
             }
         }
         $input = $request->all();
-        $sale = $this->saleRepository->storeSale($input);
-        $this->invoiceRequests->request($sale, $request->input('requested_electronic_document'));
+        $sale = DB::transaction(function () use ($input, $request) {
+            $sale = $this->saleRepository->storeSale($input);
+            $this->invoiceRequests->request($sale, $request->input('requested_electronic_document'));
+
+            return $sale;
+        }, 3);
 
         return new SaleResource($sale);
     }

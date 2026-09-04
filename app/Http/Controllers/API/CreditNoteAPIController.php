@@ -7,6 +7,7 @@ use App\Jobs\EmitirFacturaJob;
 use App\Models\CreditNote;
 use App\Models\ElectronicInvoice;
 use App\Repositories\CreditNoteRepository;
+use App\Services\SaaS\EntitlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,7 +15,10 @@ class CreditNoteAPIController extends AppBaseController
 {
     private CreditNoteRepository $creditNoteRepository;
 
-    public function __construct(CreditNoteRepository $creditNoteRepository)
+    public function __construct(
+        CreditNoteRepository $creditNoteRepository,
+        private readonly EntitlementService $entitlements
+    )
     {
         $this->creditNoteRepository = $creditNoteRepository;
     }
@@ -112,13 +116,41 @@ class CreditNoteAPIController extends AppBaseController
             ], 422);
         }
 
-        EmitirFacturaJob::dispatch(
-            $creditNote->sale_id,
-            ElectronicInvoice::NOTA_CREDITO,
-            [],
-            null,
+        $creditNote->loadMissing('warehouse.store');
+        $hasPreviousAttempt = ElectronicInvoice::where('credit_note_id', $creditNote->id)->exists();
+        $reserved = $this->entitlements->reserveElectronicDocument(
+            (int) $creditNote->warehouse?->store?->organization_id,
+            EntitlementService::SOURCE_CREDIT_NOTE,
             $creditNote->id
         );
+
+        // Entre el clic y la ejecución del job todavía no existe una fila
+        // en electronic_invoices. La reserva única cubre esa ventana y evita
+        // encolar dos veces el mismo documento por un doble clic.
+        if (! $reserved && ! $hasPreviousAttempt) {
+            return response()->json([
+                'success' => true,
+                'message' => 'La nota de crédito electrónica ya está en la cola de procesamiento.',
+            ], 202);
+        }
+
+        try {
+            EmitirFacturaJob::dispatch(
+                $creditNote->sale_id,
+                ElectronicInvoice::NOTA_CREDITO,
+                [],
+                null,
+                $creditNote->id
+            )->afterCommit();
+        } catch (\Throwable $exception) {
+            if ($reserved) {
+                $this->entitlements->releaseElectronicDocument(
+                    EntitlementService::SOURCE_CREDIT_NOTE,
+                    $creditNote->id
+                );
+            }
+            throw $exception;
+        }
 
         return response()->json([
             'success' => true,

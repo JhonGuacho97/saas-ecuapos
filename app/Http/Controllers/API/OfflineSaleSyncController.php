@@ -84,8 +84,12 @@ class OfflineSaleSyncController extends AppBaseController
             ], 422);
         }
 
-        $sale = $this->saleRepository->storeSale($request->all());
-        $this->invoiceRequests->request($sale, $request->input('requested_electronic_document'));
+        $sale = DB::transaction(function () use ($request) {
+            $sale = $this->saleRepository->storeSale($request->all());
+            $this->invoiceRequests->request($sale, $request->input('requested_electronic_document'));
+
+            return $sale;
+        }, 3);
 
         return new SaleResource($sale->fresh());
     }

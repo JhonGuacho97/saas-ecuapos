@@ -37,6 +37,15 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $exception)
     {
+        if ($exception instanceof SubscriptionRestrictionException && ($request->expectsJson() || $request->isXmlHttpRequest())) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+                'restriction' => $exception->restriction,
+                'data' => $exception->details,
+            ], $exception->statusCode);
+        }
+
         if ($exception instanceof InsufficientStockException && ($request->expectsJson() || $request->isXmlHttpRequest())) {
             return response()->json([
                 'success' => false,

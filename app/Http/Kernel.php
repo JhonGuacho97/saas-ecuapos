@@ -68,6 +68,7 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'store.context' => \App\Http\Middleware\ResolveActiveStore::class,
+        'subscription.active' => \App\Http\Middleware\EnsureActiveSubscription::class,
         'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
     ];
 }

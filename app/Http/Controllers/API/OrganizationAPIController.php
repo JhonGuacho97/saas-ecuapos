@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\AppBaseController;
 use App\Models\Organization;
+use App\Services\SaaS\EntitlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -30,7 +31,7 @@ class OrganizationAPIController extends AppBaseController
         return $this->sendResponse($organizations, 'Organizaciones obtenidas correctamente.');
     }
 
-    public function current(): JsonResponse
+    public function current(EntitlementService $entitlements): JsonResponse
     {
         $organization = Organization::query()
             ->withCount(['stores', 'users'])
@@ -43,6 +44,7 @@ class OrganizationAPIController extends AppBaseController
             'is_active' => $organization->is_active,
             'stores_count' => $organization->stores_count,
             'users_count' => $organization->users_count,
+            'subscription' => $entitlements->summary($organization->id),
         ], 'Organización activa obtenida correctamente.');
     }
 }

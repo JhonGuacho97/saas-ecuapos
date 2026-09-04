@@ -17,6 +17,7 @@ use App\Models\SaleReturn;
 use App\Models\Setting;
 use App\Models\Warehouse;
 use App\Repositories\WarehouseRepository;
+use App\Services\SaaS\EntitlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +33,10 @@ class WarehouseAPIController extends AppBaseController
      */
     private $warehouseRepository;
 
-    public function __construct(WarehouseRepository $warehouseRepository)
+    public function __construct(
+        WarehouseRepository $warehouseRepository,
+        private readonly EntitlementService $entitlements
+    )
     {
         $this->warehouseRepository = $warehouseRepository;
     }
@@ -60,9 +64,13 @@ class WarehouseAPIController extends AppBaseController
     public function store(CreateWarehouseRequest $request): WarehouseResource
     {
         $input = $request->all();
-        $input['store_id'] = $input['store_id'] ?? $this->requireCurrentStoreId();
+        $input['store_id'] = $this->requireCurrentStoreId();
         $input['is_active'] = $input['is_active'] ?? true;
-        $warehouse = $this->warehouseRepository->create($input);
+        $warehouse = $this->entitlements->withinResourceLimit(
+            $this->requireCurrentOrganizationId(),
+            EntitlementService::RESOURCE_WAREHOUSES,
+            fn () => $this->warehouseRepository->create($input)
+        );
 
         return new WarehouseResource($warehouse);
     }

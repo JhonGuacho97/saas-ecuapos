@@ -14,7 +14,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faMaximize, faMinimize, faUser,
     faLock, faRightFromBracket, faAngleDown,
-    faStore, faCheck, faGlobe
+    faStore, faCheck, faGlobe, faClock
 } from '@fortawesome/free-solid-svg-icons';
 import { Dropdown } from 'react-bootstrap';
 import PosRegisterModel from '../posRegister/PosRegisterModel.js';
@@ -56,6 +56,9 @@ const Header = (props) => {
         window.location.reload();
     };
     const currentStoreName = stores.find((s) => String(s.id) === String(currentStoreId))?.name;
+    const subscription = allConfigData?.subscription;
+    const isTrial = subscription?.plan?.code === 'trial';
+    const trialExpired = subscription?.status === 'EXPIRED';
 
     // El dropdown de idioma necesita la lista completa (antes solo la
     // pedía LanguageModel, que ahora se reemplaza por este dropdown
@@ -99,6 +102,17 @@ const Header = (props) => {
             <style>{headerStyles}</style>
 
             <Navbar collapseOnSelect expand='lg' className='hdr-navbar align-items-center ms-auto py-0'>
+
+                {isTrial && (
+                    <div
+                        className={`hdr-trial-badge${trialExpired ? ' hdr-trial-badge--expired' : ''}`}
+                        title={trialExpired ? 'El periodo de prueba terminó' : `Prueba válida hasta ${subscription.trial_ends_at || ''}`}
+                    >
+                        <FontAwesomeIcon icon={faClock} />
+                        <span className='d-none d-md-inline'>{trialExpired ? 'Prueba finalizada' : 'Prueba'}</span>
+                        <b>{trialExpired ? '!' : `${subscription.days_remaining}d`}</b>
+                    </div>
+                )}
 
                 {/* POS */}
                 {hasPosPermission && (

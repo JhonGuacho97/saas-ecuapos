@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Language;
+use App\Models\Organization;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,12 @@ class UserRepository extends BaseRepository
             }
             $storeIds = $this->resolveGrantableStoreIds($input['store_ids'] ?? []);
             $user = $this->create($input);
+            $user->organizations()->syncWithoutDetaching([
+                requireCurrentOrganizationId() => [
+                    'role' => Organization::ROLE_MEMBER,
+                    'status' => Organization::STATUS_ACTIVE,
+                ],
+            ]);
             $user->stores()->sync($storeIds);
             if (isset($input['role_id'])) {
                 if (!Auth::user() || !Auth::user()->isUnrestrictedAdmin()) {

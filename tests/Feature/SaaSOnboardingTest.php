@@ -75,6 +75,15 @@ class SaaSOnboardingTest extends TestCase
             'key' => 'logo',
             'value' => 'images/ecua-pos-logo.png',
         ]);
+        $this->assertDatabaseHas('organization_subscriptions', [
+            'organization_id' => $organizationId,
+            'status' => 'TRIALING',
+            'electronic_documents_used' => 0,
+        ]);
+        $this->assertSame('trial', $response->json('data.subscription.plan.code'));
+        $this->assertSame(14, $response->json('data.subscription.days_remaining'));
+        $this->assertSame(1, $response->json('data.subscription.limits.users'));
+        $this->assertSame(10, $response->json('data.subscription.limits.electronic_documents'));
 
         setPermissionsTeamId($storeId);
         $role = Role::where('store_id', $storeId)->where('name', 'admin')->firstOrFail();

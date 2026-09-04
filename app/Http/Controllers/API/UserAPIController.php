@@ -13,6 +13,7 @@ use App\Http\Resources\UserResource;
 use App\Models\POSRegister;
 use App\Models\User;
 use App\Repositories\UserRepository;
+use App\Services\SaaS\EntitlementService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,10 @@ class UserAPIController extends AppBaseController
     /** @var UserRepository */
     private $userRepository;
 
-    public function __construct(UserRepository $userRepository)
+    public function __construct(
+        UserRepository $userRepository,
+        private readonly EntitlementService $entitlements
+    )
     {
         $this->userRepository = $userRepository;
     }
@@ -44,7 +48,11 @@ class UserAPIController extends AppBaseController
     public function store(CreateUserRequest $request): UserResource
     {
         $input = $request->all();
-        $user = $this->userRepository->storeUser($input);
+        $user = $this->entitlements->withinResourceLimit(
+            $this->requireCurrentOrganizationId(),
+            EntitlementService::RESOURCE_USERS,
+            fn () => $this->userRepository->storeUser($input)
+        );
 
         return new UserResource($user);
     }
@@ -171,6 +179,7 @@ class UserAPIController extends AppBaseController
             'default_warehouse_name' => $user->isUnrestrictedAdmin()
                 ? null
                 : $user->defaultWarehouse?->name,
+            'subscription' => $this->entitlements->summary($this->requireCurrentOrganizationId()),
         ], 'Config retrieved successfully.');
     }
 }

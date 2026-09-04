@@ -45,7 +45,8 @@ La migración inicial trata toda la base instalada como un solo cliente:
 2. **Onboarding:** registro del propietario, creación atómica de organización,
    tienda, almacén, configuración base y usuario administrador. Implementada.
 3. **Planes y límites:** catálogo de planes, funcionalidades habilitadas,
-   límites de usuarios/tiendas/almacenes y periodo de prueba.
+   límites de usuarios/tiendas/almacenes y periodo de prueba. Implementada
+   para el plan de prueba y compatibilidad heredada.
 4. **Suscripción y cobros:** ciclo de suscripción, renovaciones, comprobantes,
    gracia, suspensión y reactivación.
 5. **Panel de plataforma:** soporte interno, organizaciones, suscripciones,
@@ -74,3 +75,28 @@ configurados expresamente por el propietario después del primer acceso.
 
 El registro puede deshabilitarse sin cambiar código mediante
 `SAAS_SELF_REGISTRATION_ENABLED=false`.
+
+## Plan de prueba y límites
+
+Cada organización creada desde el onboarding recibe automáticamente el plan
+`trial` con estas condiciones:
+
+- 14 días de prueba;
+- acceso a todos los módulos (`features: ["*"]`);
+- máximo 1 usuario, 1 tienda y 1 almacén;
+- máximo 10 documentos electrónicos únicos.
+
+Las instalaciones que ya existían al introducir esta fase reciben el plan
+interno `legacy`, sin límites, para que una migración no bloquee su operación.
+
+Los límites de usuarios, tiendas y almacenes se comprueban dentro de la misma
+transacción que crea el recurso. El cupo de documentos electrónicos usa una
+reserva idempotente por documento de origen: un doble clic o un reintento del
+mismo comprobante no descuenta cupo dos veces. Si una venta solicita factura
+electrónica, venta, inventario y reserva fiscal se confirman o revierten como
+una sola operación.
+
+Al terminar la prueba, la organización entra en modo de solo lectura: puede
+consultar sus datos, pero las peticiones que creen o modifiquen información
+responden con HTTP 402 y una causa estructurada. La fase de suscripciones y
+cobros será la encargada de convertirla a un plan activo.

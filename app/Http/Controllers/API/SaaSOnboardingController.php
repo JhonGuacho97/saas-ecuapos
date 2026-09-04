@@ -5,13 +5,15 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\AppBaseController;
 use App\Http\Requests\SaaS\CreateOrganizationRequest;
 use App\Services\SaaS\OnboardingService;
+use App\Services\SaaS\EntitlementService;
 use Illuminate\Http\JsonResponse;
 
 class SaaSOnboardingController extends AppBaseController
 {
     public function store(
         CreateOrganizationRequest $request,
-        OnboardingService $onboarding
+        OnboardingService $onboarding,
+        EntitlementService $entitlements
     ): JsonResponse {
         if (! config('saas.self_registration_enabled')) {
             return $this->sendError('El registro de nuevas organizaciones no está disponible.', 403);
@@ -27,6 +29,7 @@ class SaaSOnboardingController extends AppBaseController
                 'store' => $result['store']->only(['id', 'name', 'slug']),
                 'warehouse' => $result['warehouse']->only(['id', 'name']),
                 'user' => $result['user']->only(['id', 'first_name', 'last_name', 'email']),
+                'subscription' => $entitlements->summary($result['organization']->id),
             ],
         ], 201);
     }
