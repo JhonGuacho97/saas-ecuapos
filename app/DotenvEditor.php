@@ -395,7 +395,10 @@ class DotenvEditor
 
             $newArray = implode("\n", $newArray);
 
-            file_put_contents($this->env, $newArray);
+            // Publicar el archivo completo por reemplazo: los lectores de
+            // dotenv no toman locks y podrían leer un archivo truncado.
+            $mode = fileperms($this->env) & 0777;
+            (new \Illuminate\Filesystem\Filesystem())->replace($this->env, $newArray, $mode);
 
             return true;
         }

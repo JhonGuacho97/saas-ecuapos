@@ -239,30 +239,13 @@ const PosMainPage = (props) => {
 
     useEffect(() => {
         setSelectedCustomerOption(
-            settings.attributes && {
+            settings.attributes?.default_customer ? {
                 value: Number(settings.attributes.default_customer),
                 label: settings.attributes.customer_name,
-            }
+            } : null
         );
-        // Si este usuario tiene un almacén propio asignado (Usuarios ->
-        // editar -> "Almacén por defecto"), entra directo a ESE almacén en
-        // vez del global de Ajustes. Los admin nunca traen este valor
-        // desde el backend (siempre null para ellos), así que sin más
-        // condiciones acá caen al comportamiento de siempre.
-        if (allConfigData?.default_warehouse_id) {
-            setSelectedOption({
-                value: Number(allConfigData.default_warehouse_id),
-                label: allConfigData.default_warehouse_name,
-            });
-        } else {
-            setSelectedOption(
-                settings.attributes && {
-                    value: Number(settings.attributes.default_warehouse),
-                    label: settings.attributes.warehouse_name,
-                }
-            );
-        }
-    }, [settings, allConfigData]);
+        // WarehouseDropDown resuelve la selección con la lista vigente.
+    }, [settings]);
 
     useEffect(() => {
         fetchSetting();

@@ -181,6 +181,12 @@ class EntitlementService
             );
         }
 
+        if ($subscription->status === OrganizationSubscription::STATUS_PAST_DUE
+            && $subscription->grace_ends_at
+            && now()->lessThan($subscription->grace_ends_at)) {
+            return;
+        }
+
         if (! in_array($subscription->status, [
             OrganizationSubscription::STATUS_ACTIVE,
             OrganizationSubscription::STATUS_TRIALING,
@@ -195,10 +201,21 @@ class EntitlementService
 
     private function isExpired(OrganizationSubscription $subscription): bool
     {
-        return $subscription->status === OrganizationSubscription::STATUS_EXPIRED
+        return in_array($subscription->status, [
+                OrganizationSubscription::STATUS_EXPIRED,
+                OrganizationSubscription::STATUS_CANCELED,
+            ], true)
             || ($subscription->status === OrganizationSubscription::STATUS_TRIALING
                 && $subscription->trial_ends_at
-                && now()->greaterThanOrEqualTo($subscription->trial_ends_at));
+                && now()->greaterThanOrEqualTo($subscription->trial_ends_at))
+            || ($subscription->status === OrganizationSubscription::STATUS_ACTIVE
+                && $subscription->current_period_ends_at
+                && now()->greaterThanOrEqualTo(
+                    $subscription->current_period_ends_at->copy()->addDays((int) ($subscription->plan?->grace_days ?? 0))
+                ))
+            || ($subscription->status === OrganizationSubscription::STATUS_PAST_DUE
+                && $subscription->grace_ends_at
+                && now()->greaterThanOrEqualTo($subscription->grace_ends_at));
     }
 
     private function resourceState(OrganizationSubscription $subscription, string $resource): array

@@ -43,6 +43,7 @@ use App\Http\Controllers\API\SriConfigController;
 use App\Http\Controllers\API\StoreAPIController;
 use App\Http\Controllers\API\OrganizationAPIController;
 use App\Http\Controllers\API\SaaSOnboardingController;
+use App\Http\Controllers\API\SaaSSuperAdminController;
 use App\Http\Controllers\API\CatalogSettingAPIController;
 use App\Http\Controllers\API\CatalogOrderAPIController;
 use App\Http\Controllers\API\PublicCatalogController;
@@ -79,6 +80,22 @@ use Illuminate\Support\Facades\Route;
 // de red activa y una conexión que realmente alcanza EcuaPos. No consulta
 // base de datos ni expone información de la instalación.
 Route::get('/health', HealthController::class);
+
+Route::middleware(['auth:sanctum', 'super.admin'])->prefix('super-admin')->group(function () {
+    Route::get('dashboard', [SaaSSuperAdminController::class, 'dashboard']);
+    Route::get('organizations', [SaaSSuperAdminController::class, 'organizations']);
+    Route::patch('organizations/{organization}', [SaaSSuperAdminController::class, 'updateOrganization']);
+    Route::get('users', [SaaSSuperAdminController::class, 'users']);
+    Route::get('plans', [SaaSSuperAdminController::class, 'plans']);
+    Route::post('plans', [SaaSSuperAdminController::class, 'storePlan']);
+    Route::put('plans/{plan}', [SaaSSuperAdminController::class, 'updatePlan']);
+    Route::get('subscriptions', [SaaSSuperAdminController::class, 'subscriptions']);
+    Route::post('organizations/{organization}/subscription', [SaaSSuperAdminController::class, 'assignPlan']);
+    Route::patch('subscriptions/{subscription}', [SaaSSuperAdminController::class, 'updateSubscription']);
+    Route::post('subscriptions/{subscription}/cancel', [SaaSSuperAdminController::class, 'cancelSubscription']);
+    Route::get('payments', [SaaSSuperAdminController::class, 'payments']);
+    Route::post('subscriptions/{subscription}/payments', [SaaSSuperAdminController::class, 'recordPayment']);
+});
 
 Route::get('/sri/lookup', [SriController::class, 'lookup']);
 Route::prefix('catalog/{store:slug}')->middleware('throttle:60,1')->group(function () {

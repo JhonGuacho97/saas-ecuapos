@@ -154,31 +154,27 @@ class UserAPIController extends AppBaseController
         // tienda para elegir una. Ver AppBaseController::allPermissionNamesForUser().
         $userPermissions = $this->allPermissionNamesForUser($user);
 
-        $composerFile = file_get_contents('../composer.json');
+        $composerFile = file_get_contents(base_path('composer.json'));
         $composerData = json_decode($composerFile, true);
         $currentVersion = isset($composerData['version']) ? $composerData['version'] : '';
         $dateFormat = getSettingValue('date_format');
 
-        $openRegister = POSRegister::where('user_id', Auth::id())
-            ->whereNull('closed_at')
+        $openRegister = POSRegister::openForUser((int) Auth::id())
+            ->forStore($this->currentStoreId())
             ->exists();
 
+        $defaultWarehouse = $this->defaultWarehouseForCurrentStore();
+
         return $this->sendResponse([
+            'store_id' => $this->currentStoreId(),
             'permissions' => $userPermissions,
             'version' => $currentVersion,
             'date_format' => $dateFormat,
             'is_version' => getSettingValue('show_version_on_footer'),
             'is_currency_right' => getSettingValue('is_currency_right'),
             'open_register' => $openRegister ? false : true,
-            // Admin siempre entra por el almacén global de Ajustes, con
-            // acceso a todos -- el almacén por defecto de usuario es solo
-            // para el resto de roles (vendedores, etc.).
-            'default_warehouse_id' => $user->isUnrestrictedAdmin()
-                ? null
-                : $user->default_warehouse_id,
-            'default_warehouse_name' => $user->isUnrestrictedAdmin()
-                ? null
-                : $user->defaultWarehouse?->name,
+            'default_warehouse_id' => $defaultWarehouse?->id,
+            'default_warehouse_name' => $defaultWarehouse?->name,
             'subscription' => $this->entitlements->summary($this->requireCurrentOrganizationId()),
         ], 'Config retrieved successfully.');
     }

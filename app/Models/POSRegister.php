@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -190,5 +191,26 @@ class POSRegister extends BaseModel implements JsonResourceful
     public function movements()
     {
         return $this->hasMany(CashMovement::class, 'pos_register_id');
+    }
+
+    /**
+     * Aísla los turnos por la tienda de su almacén. Si no existe un
+     * contexto de tienda válido, falla cerrado para no exponer una caja
+     * perteneciente a otra sucursal.
+     */
+    public function scopeForStore(Builder $query, ?int $storeId): Builder
+    {
+        if (! $storeId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('warehouse', fn (Builder $warehouse) => $warehouse
+            ->where('store_id', $storeId)
+            ->active());
+    }
+
+    public function scopeOpenForUser(Builder $query, int $userId): Builder
+    {
+        return $query->where('user_id', $userId)->whereNull('closed_at');
     }
 }

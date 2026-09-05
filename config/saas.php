@@ -1,5 +1,9 @@
 <?php
 
 return [
-    'self_registration_enabled' => env('SAAS_SELF_REGISTRATION_ENABLED', true),
+    /*
+     * proveedor => clase que implementa RecurringPaymentGateway.
+     * Se deja vacío hasta seleccionar y configurar la cuenta comercial.
+     */
+    'payment_gateways' => [],
 ];

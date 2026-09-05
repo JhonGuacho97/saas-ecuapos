@@ -51,14 +51,18 @@ class POSRegisterAPIController extends AppBaseController
         // el frontend para el selector cuando no hay uno explícito:
         // almacén propio del usuario, si no el de la tienda activa.
         if (empty($input['warehouse_id'])) {
-            $input['warehouse_id'] = Auth::user()->default_warehouse_id
-                ?? getSettingValue('default_warehouse');
+            $input['warehouse_id'] = $this->defaultWarehouseForCurrentStore()?->id;
+        }
+        if (empty($input['warehouse_id'])) {
+            throw ValidationException::withMessages(['warehouse_id' => 'No tienes un almacén activo disponible en esta tienda.']);
         }
 
-        DB::transaction(function () use (&$input) {
+        $storeId = $this->requireCurrentStoreId();
+
+        DB::transaction(function () use (&$input, $storeId) {
             User::whereKey(Auth::id())->lockForUpdate()->firstOrFail();
-            if (POSRegister::where('user_id', Auth::id())->whereNull('closed_at')->exists()) {
-                throw ValidationException::withMessages(['register' => 'Ya tienes una caja abierta.']);
+            if (POSRegister::openForUser((int) Auth::id())->forStore($storeId)->exists()) {
+                throw ValidationException::withMessages(['register' => 'Ya tienes una caja abierta en esta tienda.']);
             }
 
             $warehouse = Warehouse::findOrFail($input['warehouse_id']);
@@ -110,9 +114,11 @@ class POSRegisterAPIController extends AppBaseController
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($input) {
-            $register = POSRegister::where('user_id', Auth::id())
-                ->whereNull('closed_at')->lockForUpdate()->first();
+        $storeId = $this->requireCurrentStoreId();
+
+        DB::transaction(function () use ($input, $storeId) {
+            $register = POSRegister::openForUser((int) Auth::id())
+                ->forStore($storeId)->lockForUpdate()->latest()->first();
             if (! $register) {
                 throw ValidationException::withMessages(['register' => 'No existe una sesión de caja abierta.']);
             }
@@ -161,7 +167,10 @@ class POSRegisterAPIController extends AppBaseController
 
     public function availableCashRegisters(Request $request)
     {
-        $warehouseId = (int) ($request->input('warehouse_id') ?: Auth::user()->default_warehouse_id ?: getSettingValue('default_warehouse'));
+        $warehouseId = (int) ($request->input('warehouse_id') ?: $this->defaultWarehouseForCurrentStore()?->id);
+        if (! $warehouseId) {
+            throw ValidationException::withMessages(['warehouse_id' => 'No tienes un almacén activo disponible en esta tienda.']);
+        }
         $this->authorizeWarehouseAccess($warehouseId);
         $storeId = (int) $this->currentStoreId();
 
@@ -180,9 +189,13 @@ class POSRegisterAPIController extends AppBaseController
 
     public function getRegisterDetails(Request $request)
     {
-        $register = POSRegister::where('user_id', Auth::id())
-            ->whereNull('closed_at')
-            ->first();
+        $register = POSRegister::openForUser((int) Auth::id())
+            ->forStore($this->requireCurrentStoreId())
+            ->latest()->first();
+
+        if (! $register) {
+            throw ValidationException::withMessages(['register' => 'No existe una sesión de caja abierta en esta tienda.']);
+        }
 
         // Límite del día calendario de Ecuador, convertido a UTC para
         // compararlo contra created_at (que se guarda en UTC real).
@@ -368,13 +381,16 @@ class POSRegisterAPIController extends AppBaseController
 
     public function getRegisterData($startDate, $endDate, ?POSRegister $register = null)
     {
-        $totalGrandTotalAmount = Sale::where('user_id', Auth::id())
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('grand_total');
+        $sales = Sale::where('user_id', Auth::id())
+            ->whereBetween('created_at', [$startDate, $endDate]);
+        if ($register) {
+            $sales->where('warehouse_id', $register->warehouse_id);
+        } else {
+            $this->scopeQueryToCurrentStore($sales);
+        }
 
-        $saleIds = Sale::where('user_id', Auth::id())
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->pluck('id')
+        $totalGrandTotalAmount = (clone $sales)->sum('grand_total');
+        $saleIds = $sales->pluck('id')
             ->toArray();
 
         $payments = SalesPayment::query();

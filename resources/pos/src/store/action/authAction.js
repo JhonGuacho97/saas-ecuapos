@@ -43,12 +43,28 @@ export const loginAction = (user, navigate, setLoading) => async (dispatch) => {
                 localStorage.removeItem(Tokens.ROLE_NAME);
             }
             localStorage.setItem('loginUserArray', JSON.stringify(response.data.data.user));
+            localStorage.setItem(Tokens.IS_SUPER_ADMIN, response.data.data.is_super_admin ? 'true' : 'false');
             dispatch({ type: authActionType.LOGIN_USER, payload: response.data.data });
             dispatch(setLanguage(response.data.data.user.language));
             localStorage.setItem(Tokens.UPDATED_LANGUAGE, response.data.data.user.language);
 
             const userPermissions = response.data.data.permissions;
             const mappedRoutes = userPermissions.map(mapPermissionToRoute);
+
+            if (response.data.data.is_super_admin) {
+                navigate('/app/super-admin/dashboard');
+                dispatch(addToast({ text: getFormattedMessage('login.success.message') }));
+                setLoading(false);
+                return;
+            }
+
+            // Resolver el contexto antes de montar pantallas que consultan datos.
+            await dispatch(fetchMyStores());
+            await Promise.all([
+                dispatch(fetchPermissions()),
+                dispatch(fetchFrontSetting()),
+                dispatch(fetchConfig()),
+            ]);
 
             if (mappedRoutes && mappedRoutes.length > 0) {
                 if (userPermissions.includes('manage_dashboard')) {
@@ -59,14 +75,6 @@ export const loginAction = (user, navigate, setLoading) => async (dispatch) => {
             } else {
                 navigate('/app/dashboard');
             }
-
-            // ✅ Espera a que ambas terminen antes de recargar
-            await Promise.all([
-                dispatch(fetchPermissions()),
-                dispatch(fetchFrontSetting()),
-                dispatch(fetchConfig()),
-                dispatch(fetchMyStores()),
-            ]);
 
             dispatch(addToast({ text: getFormattedMessage('login.success.message') }));
 
@@ -97,6 +105,7 @@ export const logoutAction = (token, navigate) => async (dispatch) => {
             localStorage.removeItem(Tokens.CURRENT_STORE_ID);
             localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
             localStorage.removeItem(Tokens.ROLE_NAME);
+            localStorage.removeItem(Tokens.IS_SUPER_ADMIN);
             navigate('/login');
             dispatch(addToast({ text: getFormattedMessage('logout.success.message') }));
         })

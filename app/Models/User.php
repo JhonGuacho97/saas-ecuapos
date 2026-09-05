@@ -95,6 +95,7 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
         'password',
         'language',
         'default_warehouse_id',
+        'is_super_admin',
     ];
 
     public static $rules = [
@@ -135,6 +136,7 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_super_admin' => 'boolean',
     ];
 
     public function prepareLinks(): array
