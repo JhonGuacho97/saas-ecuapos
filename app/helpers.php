@@ -86,6 +86,10 @@ if (! function_exists('getSettingValue')) {
         // de sistema (store_id NULL), el único dato que tiene sentido
         // mostrar sin saber a qué tienda pertenece el pedido.
         $query = Setting::where('key', '=', $keyName);
+        // IDs de entidades nunca se heredan de la instalación original.
+        if (in_array($keyName, ['default_warehouse', 'default_customer'], true)) {
+            return $storeId ? $query->where('store_id', $storeId)->value('value') : null;
+        }
         if ($storeId) {
             $query->where(function ($q) use ($storeId) {
                 $q->whereNull('store_id')->orWhere('store_id', $storeId);
@@ -96,9 +100,9 @@ if (! function_exists('getSettingValue')) {
 
         /** @var Setting $setting */
         $setting = $query->orderByDesc('store_id')->first();
-        $settingValues[$key] = $setting->value;
+        $settingValues[$key] = $setting?->value;
 
-        return $setting->value;
+        return $setting?->value;
     }
 }
 

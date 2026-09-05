@@ -37,6 +37,19 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $exception)
     {
+        $databaseException = $exception instanceof \Illuminate\Database\QueryException
+            ? $exception->getPrevious()
+            : $exception;
+        if ($databaseException instanceof \PDOException
+            && in_array((int) ($databaseException->errorInfo[1] ?? 0), [1045, 1049, 2002, 2003, 2006, 2013], true)
+            && ($request->expectsJson() || $request->isXmlHttpRequest())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo conectar con la base de datos. Intenta nuevamente; si continúa, contacta al administrador.',
+                'error_code' => 'DATABASE_UNAVAILABLE',
+            ], ResponseAlias::HTTP_SERVICE_UNAVAILABLE);
+        }
+
         if ($exception instanceof SubscriptionRestrictionException && ($request->expectsJson() || $request->isXmlHttpRequest())) {
             return response()->json([
                 'success' => false,

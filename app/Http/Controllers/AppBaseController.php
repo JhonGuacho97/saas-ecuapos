@@ -64,21 +64,28 @@ class AppBaseController extends Controller
     }
 
     /**
-     * Lanza 403 si el warehouse_id dado no pertenece a la sucursal del
-     * usuario autenticado, salvo que sea admin o no tenga sucursal
-     * asignada (ver restrictedWarehouseId()). Usar en show/update/destroy
-     * y cualquier endpoint que exponga un registro puntual por ID.
-     *
-     * También valida -- SIEMPRE, sin excepción para admin -- que ese
-     * warehouse pertenezca a la tienda activa (currentStoreId()). A
-     * diferencia de la restricción por sucursal de arriba, el
-     * aislamiento entre tiendas es un límite de tenant, no de rol: un
-     * admin de la Tienda A nunca debe poder leer/escribir sobre una
-     * sucursal de la Tienda B. Si no hay tienda activa resuelta todavía
-     * (0/2+ tiendas sin header X-Store-Id -- ver ResolveActiveStore) no
-     * se puede validar nada acá, así que se deja pasar sin tocar el
-     * comportamiento actual, igual criterio que el resto de esta fase.
+     * Resuelve una bodega activa de la tienda, respetando la restricción
+     * del usuario. Configuración, selector POS y apertura usan esta regla.
      */
+    protected function defaultWarehouseForCurrentStore(): ?Warehouse
+    {
+        $storeId = $this->currentStoreId();
+        if (! $storeId) {
+            return null;
+        }
+
+        $query = Warehouse::where('store_id', $storeId)->active();
+        if (($restricted = $this->restrictedWarehouseId()) !== null) {
+            $query->whereKey($restricted);
+        }
+
+        $preferredId = getSettingValue('default_warehouse');
+
+        return ($preferredId ? (clone $query)->whereKey($preferredId)->first() : null)
+            ?? $query->orderBy('id')->first();
+    }
+
+    /** Valida tanto la restricción del usuario como la pertenencia a la tienda. */
     protected function authorizeWarehouseAccess(?int $warehouseId): void
     {
         $restricted = $this->restrictedWarehouseId();

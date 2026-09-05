@@ -115,7 +115,7 @@ class AuthController extends AppBaseController
         // team_id null y devolvería SIEMPRE vacío, sin importar el rol
         // real del usuario. Ver AppBaseController::allPermissionNamesForUser()
         // para el criterio completo (única tienda / unión de 2+ / ninguna).
-        $userPermissions = $this->allPermissionNamesForUser($user);
+        $userPermissions = $user->is_super_admin ? [] : $this->allPermissionNamesForUser($user);
 
         // Nombre de rol legible para mostrar en el header (ej. "Admin")
         // -- se lee ANTES del unset() de abajo, que borra a propósito
@@ -142,6 +142,7 @@ class AuthController extends AppBaseController
                 'user' => $user,
                 'permissions' => $userPermissions,
                 'role_name' => $roleLabel,
+                'is_super_admin' => (bool) $user->is_super_admin,
             ],
             'message' => 'Logged in successfully.',
         ]);

@@ -11,6 +11,13 @@
 |
 */
 
+// mod_php en Windows comparte el entorno del proceso entre peticiones.
+// Usar solo los adaptadores de $_ENV/$_SERVER evita carreras de putenv/getenv.
+// CLI y PHP-FPM conservan su soporte de variables externas habitual.
+if (PHP_SAPI === 'apache2handler' && PHP_ZTS) {
+    Illuminate\Support\Env::disablePutenv();
+}
+
 $app = new Illuminate\Foundation\Application(
     $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
 );

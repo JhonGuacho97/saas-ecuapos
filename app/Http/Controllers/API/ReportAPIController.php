@@ -538,9 +538,9 @@ class ReportAPIController extends AppBaseController
         $data['all_grand_total_amount'] = $totalGrandTotalAmount;
 
         $cashInHand = 0;
-        $register = POSRegister::where('user_id', Auth::id())
-            ->whereNull('closed_at')
-            ->first();
+        $register = POSRegister::openForUser((int) Auth::id())
+            ->forStore($this->currentStoreId())
+            ->latest()->first();
         if ($register) {
             $cashInHand = $register->cash_in_hand;
         }

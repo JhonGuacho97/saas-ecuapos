@@ -171,9 +171,8 @@ public function updateSettings($input)
             $envData['MAIL_PASSWORD'] = (empty($inputArr['mail_password'])) ? '' : $inputArr['mail_password'];
         }
 
-        foreach ($envData as $key => $value) {
-            $this->createOrUpdateEnv($env, $key, $value);
-        }
+        // addData combina claves existentes y nuevas en una sola escritura.
+        $env->addData($envData);
     }
 
     public function createOrUpdateEnv($env, $key, $value): bool

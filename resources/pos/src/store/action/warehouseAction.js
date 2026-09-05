@@ -217,7 +217,7 @@ export const deleteWarehouse = (warehouseId) => async (dispatch) => {
         });
 };
 
-export const fetchAllWarehouses = () => async (dispatch) => {
+export const fetchAllWarehouses = (forPos = false) => async (dispatch) => {
     const useCachedWarehouses = async () => {
         const snapshot = await loadCachedResource("warehouses");
         if (snapshot) {
@@ -232,7 +232,7 @@ export const fetchAllWarehouses = () => async (dispatch) => {
     if (!navigator.onLine) return useCachedWarehouses();
 
     try {
-        const response = await apiConfig.get("warehouses?page[size]=0");
+        const response = await apiConfig.get("warehouses?page[size]=0" + (forPos ? "&for_pos=1" : ""));
         const warehouses = response.data.data || [];
         dispatch({
             type: warehouseActionType.FETCH_ALL_WAREHOUSES,

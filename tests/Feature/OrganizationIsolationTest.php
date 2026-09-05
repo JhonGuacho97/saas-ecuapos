@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Organization;
 use App\Models\OrganizationSubscription;
+use App\Models\POSRegister;
 use App\Models\SaaSPlan;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\Warehouse;
+use App\Models\Setting;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
@@ -98,6 +101,142 @@ class OrganizationIsolationTest extends TestCase
         $this->assertTrue($ids->contains($store->id));
         $this->assertFalse($ids->contains($foreignStore->id));
         $this->assertSame($organization->id, $store->organization_id);
+    }
+
+    public function test_pos_defaults_follow_active_store_even_when_user_default_is_in_another_store(): void
+    {
+        [$organization, $store, $user] = $this->context();
+        $otherStore = $this->store($organization, 'Sucursal');
+        $user->stores()->attach($otherStore->id);
+        $first = $this->warehouse($store);
+        $second = $this->warehouse($otherStore);
+        $user->update(['default_warehouse_id' => $first->id]);
+        foreach ([$store, $otherStore] as $allowedStore) {
+            setPermissionsTeamId($allowedStore->id);
+            $user->unsetRelation('permissions')->unsetRelation('roles');
+            $user->givePermissionTo(Permission::all());
+        }
+        // Simula configuraciones heredadas que apuntan a otra tienda.
+        Setting::updateOrCreate(['store_id' => $otherStore->id, 'key' => 'default_warehouse'], ['value' => $first->id]);
+        Sanctum::actingAs($user, ['*']);
+
+        foreach ([[$store, $first], [$otherStore, $second], [$store, $first]] as [$activeStore, $expected]) {
+            $user->unsetRelation('permissions')->unsetRelation('roles');
+            $this->withHeader('X-Store-Id', $activeStore->id)->getJson('/api/config')
+                ->assertOk()->assertJsonPath('data.default_warehouse_id', $expected->id);
+            $this->getJson('/api/settings')->assertOk()
+                ->assertJsonPath('data.attributes.default_warehouse', $expected->id)
+                ->assertJsonPath('data.attributes.warehouse_name', $expected->name);
+            $this->getJson('/api/available-cash-registers')->assertOk();
+        }
+
+        $user->unsetRelation('permissions')->unsetRelation('roles');
+        $this->withHeader('X-Store-Id', $otherStore->id)
+            ->postJson('/api/register-entry', ['cash_in_hand' => 0])->assertOk();
+        $this->assertDatabaseHas('pos_register', ['user_id' => $user->id, 'warehouse_id' => $second->id]);
+        $this->assertDatabaseMissing('pos_register', ['user_id' => $user->id, 'warehouse_id' => $first->id]);
+    }
+
+    public function test_open_cash_sessions_are_isolated_when_user_switches_stores(): void
+    {
+        [$organization, $firstStore, $user] = $this->context();
+        $secondStore = $this->store($organization, 'Sucursal sin actividad');
+        $user->stores()->attach($secondStore->id);
+        $firstWarehouse = $this->warehouse($firstStore);
+        $secondWarehouse = $this->warehouse($secondStore);
+        foreach ([$firstStore, $secondStore] as $allowedStore) {
+            setPermissionsTeamId($allowedStore->id);
+            $user->unsetRelation('permissions')->unsetRelation('roles');
+            $user->givePermissionTo(Permission::all());
+        }
+        Sanctum::actingAs($user, ['*']);
+
+        $this->withHeader('X-Store-Id', $firstStore->id)
+            ->postJson('/api/register-entry', ['cash_in_hand' => 25])
+            ->assertOk();
+
+        $firstSession = POSRegister::where('user_id', $user->id)
+            ->where('warehouse_id', $firstWarehouse->id)->whereNull('closed_at')->firstOrFail();
+
+        // Cambiar de tienda no puede reutilizar ni mostrar el turno anterior.
+        $this->withHeader('X-Store-Id', $secondStore->id)
+            ->getJson('/api/config')->assertOk()->assertJsonPath('data.open_register', true);
+        $this->withHeader('X-Store-Id', $secondStore->id)
+            ->getJson('/api/get-register-details')->assertUnprocessable();
+
+        $this->withHeader('X-Store-Id', $secondStore->id)
+            ->postJson('/api/register-entry', ['cash_in_hand' => 0])
+            ->assertOk();
+        $secondSession = POSRegister::where('user_id', $user->id)
+            ->where('warehouse_id', $secondWarehouse->id)->whereNull('closed_at')->firstOrFail();
+
+        $this->assertNotSame($firstSession->id, $secondSession->id);
+        $this->assertSame(2, POSRegister::where('user_id', $user->id)->whereNull('closed_at')->count());
+
+        $this->withHeader('X-Store-Id', $secondStore->id)
+            ->postJson('/api/register-close', ['cash_in_hand_while_closing' => 0])
+            ->assertOk();
+
+        $this->assertNull($firstSession->fresh()->closed_at);
+        $this->assertNotNull($secondSession->fresh()->closed_at);
+    }
+
+    public function test_new_store_does_not_inherit_entity_ids_from_global_settings(): void
+    {
+        [, $store, $user] = $this->context();
+        $foreignStore = $this->store($this->organization('Otra empresa'), 'Ajena');
+        $foreignWarehouse = $this->warehouse($foreignStore);
+        Setting::updateOrCreate(['store_id' => null, 'key' => 'default_warehouse'], ['value' => $foreignWarehouse->id]);
+        Sanctum::actingAs($user, ['*']);
+
+        $this->withHeader('X-Store-Id', $store->id)->getJson('/api/settings')->assertOk()
+            ->assertJsonPath('data.attributes.default_warehouse', null)
+            ->assertJsonPath('data.attributes.default_customer', null);
+        $this->getJson('/api/available-cash-registers')->assertUnprocessable();
+        $this->getJson('/api/available-cash-registers?warehouse_id='.$foreignWarehouse->id)->assertUnprocessable();
+    }
+
+    public function test_inactive_store_default_is_replaced_with_an_active_local_warehouse(): void
+    {
+        [, $store, $user] = $this->context();
+        $inactive = $this->warehouse($store);
+        $inactive->update(['is_active' => false]);
+        $active = $this->warehouse($store);
+        Setting::updateOrCreate(['store_id' => $store->id, 'key' => 'default_warehouse'], ['value' => $inactive->id]);
+        Sanctum::actingAs($user, ['*']);
+
+        $this->withHeader('X-Store-Id', $store->id)->getJson('/api/config')->assertOk()
+            ->assertJsonPath('data.default_warehouse_id', $active->id);
+        $this->getJson('/api/settings')->assertOk()
+            ->assertJsonPath('data.attributes.default_warehouse', $active->id);
+    }
+
+    public function test_pos_preserves_seller_warehouse_restrictions(): void
+    {
+        [, $store, $user] = $this->context();
+        $first = $this->warehouse($store);
+        $assigned = $this->warehouse($store);
+        $user->update(['default_warehouse_id' => $assigned->id]);
+        Setting::updateOrCreate(['store_id' => $store->id, 'key' => 'default_warehouse'], ['value' => $first->id]);
+        Sanctum::actingAs($user, ['*']);
+
+        $this->withHeader('X-Store-Id', $store->id)->getJson('/api/config')->assertOk()
+            ->assertJsonPath('data.default_warehouse_id', $assigned->id);
+        $this->getJson('/api/warehouses?for_pos=1&page[size]=100')->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $assigned->id);
+        $this->getJson('/api/available-cash-registers?warehouse_id='.$first->id)->assertUnprocessable();
+        $assigned->update(['is_active' => false]);
+        $this->getJson('/api/config')->assertOk()->assertJsonPath('data.default_warehouse_id', null);
+    }
+
+    private function warehouse(Store $store): Warehouse
+    {
+        $suffix = Str::lower(Str::random(12));
+        return Warehouse::create([
+            'store_id' => $store->id, 'name' => 'Bodega '.$suffix,
+            'email' => $suffix.'@example.test', 'phone' => '0999999999',
+            'country' => 'Ecuador', 'city' => 'Manabi', 'is_active' => true,
+        ]);
     }
 
     private function context(): array

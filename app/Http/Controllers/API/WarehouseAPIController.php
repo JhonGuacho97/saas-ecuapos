@@ -49,6 +49,9 @@ class WarehouseAPIController extends AppBaseController
             $warehousesQuery->where('store_id', $storeId);
         }
         $canManageWarehouses = $request->user()?->can('manage_warehouses') ?? false;
+        if ($request->boolean('for_pos') && ($restricted = $this->restrictedWarehouseId()) !== null) {
+            $warehousesQuery->where('id', $restricted);
+        }
         if (! ($request->boolean('include_inactive') && $canManageWarehouses)) {
             $warehousesQuery->where('is_active', true);
         }

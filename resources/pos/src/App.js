@@ -14,12 +14,14 @@ import ResetPassword from "./components/auth/ResetPassword";
 import ForgotPassword from "./components/auth/ForgotPassword";
 import Onboarding from "./components/auth/Onboarding";
 import AdminApp from "./AdminApp";
+import SuperAdminApp from "./components/SuperAdminApp";
 import useLanguage from "./hooks/useLanguage";
 
 function App() {
     const dispatch = useDispatch();
     const location = useLocation();
     const token = localStorage.getItem(Tokens.ADMIN);
+    const isSuperAdmin = localStorage.getItem(Tokens.IS_SUPER_ADMIN) === "true";
     const { config } = useSelector((state) => state);
 
     // ─── Idioma ───────────────────────────────────────────────────────────────
@@ -56,10 +58,11 @@ function App() {
 
     // ─── Carga inicial de datos ───────────────────────────────────────────────
     useEffect(() => {
-        if (token) {
-            dispatch(fetchConfig());
-            dispatch(fetchFrontSetting());
-            dispatch(fetchMyStores());
+        if (token && !isSuperAdmin) {
+            dispatch(fetchMyStores()).then(() => {
+                dispatch(fetchConfig());
+                dispatch(fetchFrontSetting());
+            });
         }
     }, []);
 
@@ -89,6 +92,10 @@ function App() {
                         element={<ForgotPassword />}
                     />
                     <Route
+                        path="app/super-admin/*"
+                        element={token ? <SuperAdminApp /> : <Navigate replace to="/login" />}
+                    />
+                    <Route
                         path="app/*"
                         element={<AdminApp config={config} />}
                     />
@@ -97,7 +104,7 @@ function App() {
                         element={
                             <Navigate
                                 replace
-                                to={token ? redirectTo : "/login"}
+                                to={token ? (isSuperAdmin ? "/app/super-admin/dashboard" : redirectTo) : "/login"}
                             />
                         }
                     />

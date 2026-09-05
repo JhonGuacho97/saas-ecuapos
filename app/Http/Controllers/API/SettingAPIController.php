@@ -79,8 +79,7 @@ class SettingAPIController extends AppBaseController
         }
 
         $settings['logo'] = getLogoUrl();
-        $settings['warehouse_name'] = Warehouse::active()->whereId($settings['default_warehouse'] ?? null)->value('name') ?? '';
-        $settings['customer_name'] = Customer::whereId($settings['default_customer'])->first()->name ?? '';
+        $settings = $this->resolveStoreDefaults($settings);
         $settings['currency_symbol'] = Currency::whereId($settings['currency'])->first()->symbol ?? '';
         $settings['countries'] = Country::all();
 
@@ -112,12 +111,29 @@ class SettingAPIController extends AppBaseController
         ];
         $settings = $this->scopedSettingsQuery()->whereIn('key', $keyName)->get()->pluck('value', 'key')->toArray();
         $settings['logo'] = getLogoUrl();
-        $settings['warehouse_name'] = Warehouse::active()->whereId($settings['default_warehouse'] ?? null)->value('name') ?? '';
-        $settings['customer_name'] = Customer::whereId($settings['default_customer'])->first()->name ?? '';
+        $settings = $this->resolveStoreDefaults($settings);
         $settings['currency_symbol'] = Currency::whereId($settings['currency'])->first()->symbol ?? '';
 
         return $this->sendResponse(new SettingResource(['type' => 'settings', 'value' => $settings]),
             'Setting value retrieved successfully.');
+    }
+
+    private function resolveStoreDefaults(array $settings): array
+    {
+        $warehouse = $this->defaultWarehouseForCurrentStore();
+        $storeId = $this->currentStoreId();
+        $customerId = getSettingValue('default_customer');
+        $customer = $storeId && $customerId
+            ? Customer::where('store_id', $storeId)->whereKey($customerId)->first()
+            : null;
+
+        $settings['store_id'] = $storeId;
+        $settings['default_warehouse'] = $warehouse?->id;
+        $settings['warehouse_name'] = $warehouse?->name ?? '';
+        $settings['default_customer'] = $customer?->id;
+        $settings['customer_name'] = $customer?->name ?? '';
+
+        return $settings;
     }
 
     public function getStates($countryId): JsonResponse

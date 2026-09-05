@@ -49,4 +49,9 @@ class Organization extends BaseModel
     {
         return $this->hasOne(OrganizationSubscription::class);
     }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(SaaSPayment::class);
+    }
 }

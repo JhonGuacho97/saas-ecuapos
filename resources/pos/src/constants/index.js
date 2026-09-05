@@ -606,6 +606,7 @@ export const Tokens = {
     CURRENT_STORE_ID: "current_store_id",
     CURRENT_ORGANIZATION_ID: "current_organization_id",
     ROLE_NAME: "role_name",
+    IS_SUPER_ADMIN: "is_super_admin",
 };
 
 export const errorMessage = {
