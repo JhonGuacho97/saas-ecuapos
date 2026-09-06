@@ -6,8 +6,6 @@ import * as EmailValidator from "email-validator";
 import { loginAction } from "../../store/action/authAction";
 import TabTitle from "../../shared/tab-title/TabTitle";
 import { fetchFrontSetting } from "../../store/action/frontSettingAction";
-import { Tokens } from "../../constants";
-import { createBrowserHistory } from "history";
 import {
     getFormattedMessage,
     placeholderText,
@@ -32,19 +30,16 @@ const ShieldIcon = () => (
 const Login = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const history = createBrowserHistory();
     const { frontSetting } = useSelector((state) => state);
     const [loading, setLoading] = useState(false);
     const [showPw, setShowPw] = useState(false);
-    const token = localStorage.getItem(Tokens.ADMIN);
 
     const [loginInputs, setLoginInputs] = useState({ email: "", password: "" });
     const [errors, setErrors] = useState({ email: "", password: "" });
 
     useEffect(() => {
         dispatch(fetchFrontSetting());
-        if (token) history.push(window.location.pathname);
-    }, []);
+    }, [dispatch]);
 
     const handleValidation = () => {
         let errorss = {};

@@ -126,6 +126,12 @@ class EntitlementService
             'status' => $expired ? OrganizationSubscription::STATUS_EXPIRED : $subscription->status,
             'is_trial' => $subscription->status === OrganizationSubscription::STATUS_TRIALING,
             'trial_ends_at' => $subscription->trial_ends_at?->toIso8601String(),
+            // La pantalla de administración de la suscripción necesita
+            // mostrar hasta cuándo está pagado el plan; days_remaining
+            // solo cubre la prueba.
+            'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
+            'next_billing_at' => $subscription->next_billing_at?->toIso8601String(),
+            'auto_renew' => (bool) $subscription->auto_renew,
             'days_remaining' => $subscription->trial_ends_at && ! $expired
                 ? max(1, (int) now()->ceilDay()->diffInDays($subscription->trial_ends_at->ceilDay()))
                 : 0,

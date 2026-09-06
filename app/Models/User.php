@@ -209,7 +209,7 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
 
     public function sendPasswordResetNotification($token)
     {
-        $url = url('/#/reset-password/'.$token);
+        $url = url('/sistema#/reset-password/'.$token);
 
         $this->notify(new ResetPasswordNotification($url));
     }

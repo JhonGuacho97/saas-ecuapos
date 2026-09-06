@@ -14,7 +14,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faMaximize, faMinimize, faUser,
     faLock, faRightFromBracket, faAngleDown,
-    faStore, faCheck, faGlobe, faClock
+    faStore, faCheck, faGlobe, faClock, faCreditCard
 } from '@fortawesome/free-solid-svg-icons';
 import { Dropdown } from 'react-bootstrap';
 import PosRegisterModel from '../posRegister/PosRegisterModel.js';
@@ -83,6 +83,7 @@ const Header = (props) => {
 
     const onLogOut       = () => { logoutAction(token, navigate); navigate('/login'); };
     const onProfileClick = () => { window.location.href = '#/app/profile/edit'; };
+    const onSubscriptionClick = () => { navigate('/app/subscription'); };
     const fullScreen     = () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
@@ -229,6 +230,17 @@ const Header = (props) => {
                             <div className='hdr-item-icon'><FontAwesomeIcon icon={faLock} /></div>
                             {getFormattedMessage('header.profile-menu.change-password.label')}
                         </Dropdown.Item>
+
+                        {/* Renovar o mejorar el plan es cosa del dueño de la
+                            cuenta: el backend marca can_manage_subscription
+                            solo para el rol con todos los permisos de la
+                            organización. */}
+                        {allConfigData?.can_manage_subscription && (
+                            <Dropdown.Item onClick={onSubscriptionClick} className='hdr-dropdown-item'>
+                                <div className='hdr-item-icon'><FontAwesomeIcon icon={faCreditCard} /></div>
+                                {getFormattedMessage('header.profile-menu.subscription.label')}
+                            </Dropdown.Item>
+                        )}
 
                         <div className='hdr-divider' />
 

@@ -15,9 +15,9 @@ class SaaSPayment extends BaseModel
 
     protected $fillable = [
         'organization_id', 'organization_subscription_id', 'saas_plan_id',
-        'amount', 'currency', 'status', 'method', 'provider', 'provider_reference',
-        'period_starts_at', 'period_ends_at', 'paid_at', 'failed_at',
-        'failure_reason', 'metadata', 'recorded_by',
+        'amount', 'currency', 'status', 'method', 'provider', 'provider_reference', 'submission_key',
+        'proof_path', 'submitted_at', 'period_starts_at', 'period_ends_at', 'paid_at', 'failed_at',
+        'reviewed_at', 'reviewed_by', 'failure_reason', 'metadata', 'recorded_by',
     ];
 
     protected $casts = [
@@ -26,6 +26,8 @@ class SaaSPayment extends BaseModel
         'period_ends_at' => 'datetime',
         'paid_at' => 'datetime',
         'failed_at' => 'datetime',
+        'submitted_at' => 'datetime',
+        'reviewed_at' => 'datetime',
         'metadata' => 'array',
     ];
 
@@ -33,4 +35,5 @@ class SaaSPayment extends BaseModel
     public function subscription(): BelongsTo { return $this->belongsTo(OrganizationSubscription::class, 'organization_subscription_id'); }
     public function plan(): BelongsTo { return $this->belongsTo(SaaSPlan::class, 'saas_plan_id'); }
     public function recordedBy(): BelongsTo { return $this->belongsTo(User::class, 'recorded_by'); }
+    public function reviewedBy(): BelongsTo { return $this->belongsTo(User::class, 'reviewed_by'); }
 }

@@ -4,6 +4,7 @@
     "login-logs.title": "登录日志",
     "header.profile-menu.profile.label": "个人资料",
     "header.profile-menu.change-password.label": "修改密码",
+    "header.profile-menu.subscription.label": "管理订阅",
     "header.profile-menu.logout.label": "注销",
     "product.categories.title": "产品类别",
     "expense.categories.title": "费用类别",

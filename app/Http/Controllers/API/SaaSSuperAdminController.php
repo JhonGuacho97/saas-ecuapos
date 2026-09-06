@@ -12,6 +12,7 @@ use App\Services\SaaS\BillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class SaaSSuperAdminController extends AppBaseController
@@ -145,6 +146,31 @@ class SaaSSuperAdminController extends AppBaseController
             ->when($request->get('status'), fn ($query, $status) => $query->where('status', $status))
             ->latest('id')->paginate(min(50, max(5, (int) $request->get('per_page', 15))));
         return response()->json(['success' => true, 'data' => $payments]);
+    }
+
+    public function paymentProof(SaaSPayment $payment)
+    {
+        abort_unless($payment->proof_path, 404, 'Este pago no tiene comprobante adjunto.');
+
+        $disk = Storage::disk('saas_private');
+        abort_unless($disk->exists($payment->proof_path), 404, 'El comprobante no está disponible.');
+
+        return $disk->response($payment->proof_path, basename($payment->proof_path), [
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Content-Disposition' => 'inline; filename="'.basename($payment->proof_path).'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    public function approvePayment(SaaSPayment $payment, BillingService $billing): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $billing->approvePendingPayment($payment), 'message' => 'Comprobante aprobado y suscripción renovada.']);
+    }
+
+    public function rejectPayment(Request $request, SaaSPayment $payment, BillingService $billing): JsonResponse
+    {
+        $data = $request->validate(['reason' => 'required|string|max:1000']);
+        return response()->json(['success' => true, 'data' => $billing->rejectPendingPayment($payment, $data['reason']), 'message' => 'Comprobante rechazado.']);
     }
 
     public function recordPayment(Request $request, OrganizationSubscription $subscription, BillingService $billing): JsonResponse

@@ -10,10 +10,12 @@ use App\Http\Requests\UpdateUserProfileRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserCollection;
 use App\Http\Resources\UserResource;
+use App\Models\Organization;
 use App\Models\POSRegister;
 use App\Models\User;
 use App\Repositories\UserRepository;
 use App\Services\SaaS\EntitlementService;
+use App\Services\SaaS\SubscriptionAdministration;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,7 +32,8 @@ class UserAPIController extends AppBaseController
 
     public function __construct(
         UserRepository $userRepository,
-        private readonly EntitlementService $entitlements
+        private readonly EntitlementService $entitlements,
+        private readonly SubscriptionAdministration $subscriptionAdministration
     )
     {
         $this->userRepository = $userRepository;
@@ -164,6 +167,7 @@ class UserAPIController extends AppBaseController
             ->exists();
 
         $defaultWarehouse = $this->defaultWarehouseForCurrentStore();
+        $organizationId = $this->requireCurrentOrganizationId();
 
         return $this->sendResponse([
             'store_id' => $this->currentStoreId(),
@@ -175,7 +179,15 @@ class UserAPIController extends AppBaseController
             'open_register' => $openRegister ? false : true,
             'default_warehouse_id' => $defaultWarehouse?->id,
             'default_warehouse_name' => $defaultWarehouse?->name,
-            'subscription' => $this->entitlements->summary($this->requireCurrentOrganizationId()),
+            'subscription' => $this->entitlements->summary($organizationId),
+            // Gobierna el ítem "Administrar suscripciones" del menú de
+            // usuario: renovar o mejorar el plan es cosa del dueño de la
+            // cuenta, no de cada cajero. El backend lo revalida igual en
+            // SaaSSubscriptionPortalController antes de aceptar un pago.
+            'can_manage_subscription' => $this->subscriptionAdministration->canManage(
+                $user,
+                Organization::findOrFail($organizationId)
+            ),
         ], 'Config retrieved successfully.');
     }
 }

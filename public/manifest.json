@@ -35,14 +35,14 @@
       "name": "Nueva venta",
       "short_name": "POS",
       "description": "Abrir el punto de venta",
-      "url": "/#/app/pos",
+      "url": "/sistema#/app/pos",
       "icons": [{ "src": "/images/pwa/ecuapos-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Panel principal",
       "short_name": "Panel",
       "description": "Abrir el panel de EcuaPos",
-      "url": "/#/app/dashboard",
+      "url": "/sistema#/app/dashboard",
       "icons": [{ "src": "/images/pwa/ecuapos-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],

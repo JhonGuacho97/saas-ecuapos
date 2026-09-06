@@ -260,6 +260,17 @@ class OrganizationIsolationTest extends TestCase
     private function organization(string $name): Organization
     {
         $suffix = Str::lower(Str::random(10));
+        $plan = SaaSPlan::firstOrCreate(['code' => 'legacy-test'], [
+            'name' => 'Plan heredado de pruebas',
+            'price' => 0,
+            'currency' => 'USD',
+            'billing_interval' => 'monthly',
+            'billing_interval_count' => 1,
+            'trial_days' => 0,
+            'grace_days' => 0,
+            'features' => ['*'],
+            'is_active' => true,
+        ]);
 
         $organization = Organization::create([
             'name' => "{$name} {$suffix}",
@@ -268,7 +279,7 @@ class OrganizationIsolationTest extends TestCase
         ]);
         OrganizationSubscription::create([
             'organization_id' => $organization->id,
-            'saas_plan_id' => SaaSPlan::where('code', 'legacy')->value('id'),
+            'saas_plan_id' => $plan->id,
             'status' => OrganizationSubscription::STATUS_ACTIVE,
             'starts_at' => now(),
             'electronic_documents_used' => 0,
