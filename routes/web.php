@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CatalogPageController;
 use App\Http\Controllers\CatalogCustomerAuthController;
 use App\Http\Controllers\API\PublicCatalogController;
+use App\Http\Controllers\LandingPageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,9 +17,8 @@ use App\Http\Controllers\API\PublicCatalogController;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', LandingPageController::class)->name('landing');
+Route::view('/sistema', 'welcome')->name('app');
 
 Route::get('/catalogo/{store:slug}', CatalogPageController::class)->name('catalog.show');
 Route::prefix('/catalogo/{store:slug}/cuenta')->group(function () {

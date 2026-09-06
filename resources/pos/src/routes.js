@@ -35,6 +35,9 @@ const EditUser = lazyWithRetry(() => import(/* webpackChunkName: "user" */ "./co
 const UserDetail = lazyWithRetry(() => import(/* webpackChunkName: "user" */ "./components/users/UserDetail"), "UserDetail");
 const UpdateProfile = lazyWithRetry(() => import(/* webpackChunkName: "user" */ "./components/user-profile/UpdateProfile"), "UpdateProfile");
 
+// Suscripción SaaS: chunk propio, solo lo baja quien administra la cuenta.
+const SubscriptionManager = lazyWithRetry(() => import(/* webpackChunkName: "subscription" */ "./components/subscription/SubscriptionManager"), "SubscriptionManager");
+
 // Productos.
 const Product = lazyWithRetry(() => import(/* webpackChunkName: "product" */ "./components/product/Product"), "Product");
 const CreateProduct = lazyWithRetry(() => import(/* webpackChunkName: "product" */ "./components/product/CreateProduct"), "CreateProduct");
@@ -303,6 +306,15 @@ export const route = [
     {
         path: "profile/edit",
         ele: <UpdateProfile />,
+        permission: "",
+    },
+    {
+        // Sin permiso de menú: no existe un permiso "suscripción" en los
+        // roles de tienda. Quién puede entrar lo decide el backend
+        // (config.can_manage_subscription) y lo revalida el propio
+        // componente antes de renderizar.
+        path: "subscription",
+        ele: <SubscriptionManager />,
         permission: "",
     },
     {

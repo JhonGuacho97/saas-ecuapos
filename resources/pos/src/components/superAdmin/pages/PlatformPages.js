@@ -1,0 +1,1553 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+    faArrowTrendUp,
+    faBuilding,
+    faCalendarCheck,
+    faChevronLeft,
+    faChevronRight,
+    faCircleCheck,
+    faClock,
+    faCreditCard,
+    faLayerGroup,
+    faEye,
+    faMagnifyingGlass,
+    faPen,
+    faPlus,
+    faReceipt,
+    faStore,
+    faTriangleExclamation,
+    faUsers,
+    faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import apiConfig from "../../../config/apiConfig";
+import api from "../api/superAdminApi";
+import PaymentProofModal from "../payments/PaymentProofModal";
+import { formatDate as date, formatMoney as money, subscriptionStatusLabels as statusLabel } from "../utils/formatters";
+
+const IconBox = ({ icon, tone = "blue" }) => (
+    <span className={`sa-icon sa-icon--${tone}`}>
+        <FontAwesomeIcon icon={icon} />
+    </span>
+);
+const Status = ({ value }) => (
+    <span
+        className={`sa-status sa-status--${String(value || "").toLowerCase()}`}
+    >
+        {statusLabel[value] || value}
+    </span>
+);
+const Empty = ({ text = "Todavía no hay información para mostrar." }) => (
+    <div className="sa-empty">
+        <IconBox icon={faReceipt} />
+        <p>{text}</p>
+    </div>
+);
+const Loading = () => (
+    <div className="sa-loading">
+        <span /> Cargando información…
+    </div>
+);
+
+export function Dashboard() {
+    const [data, setData] = useState(null);
+    useEffect(() => {
+        api.get("dashboard").then(setData);
+    }, []);
+    if (!data) return <Loading />;
+    const cards = [
+        [
+            "Ingresos del mes",
+            money(data.metrics.monthly_revenue),
+            faArrowTrendUp,
+            "blue",
+        ],
+        [
+            "Organizaciones activas",
+            data.metrics.active_organizations,
+            faBuilding,
+            "green",
+        ],
+        [
+            "Suscripciones activas",
+            data.metrics.active_subscriptions,
+            faCalendarCheck,
+            "violet",
+        ],
+        ["Pruebas en curso", data.metrics.trials, faClock, "amber"],
+    ];
+    const max = Math.max(
+        1,
+        ...data.revenue_series.map((item) => Number(item.amount)),
+    );
+    return (
+        <>
+            <section className="sa-metrics">
+                {cards.map(([label, value, icon, tone]) => (
+                    <article key={label} className="sa-metric">
+                        <IconBox icon={icon} tone={tone} />
+                        <div>
+                            <small>{label}</small>
+                            <strong>{value}</strong>
+                        </div>
+                    </article>
+                ))}
+            </section>
+            <section className="sa-grid sa-grid--dashboard">
+                <article className="sa-card sa-chart">
+                    <div className="sa-card-head">
+                        <div>
+                            <span className="sa-eyebrow">RENDIMIENTO</span>
+                            <h2>Ingresos de los últimos 30 días</h2>
+                        </div>
+                        <span className="sa-soft-pill">USD</span>
+                    </div>
+                    <div className="sa-bars">
+                        {data.revenue_series.map((item, index) => (
+                            <div
+                                key={item.date}
+                                className="sa-bar-wrap"
+                                title={`${date(item.date)} · ${money(item.amount)}`}
+                            >
+                                <div
+                                    className="sa-bar"
+                                    style={{
+                                        height: `${Math.max(3, (Number(item.amount) / max) * 100)}%`,
+                                    }}
+                                />
+                                {index % 6 === 0 && (
+                                    <small>
+                                        {new Date(
+                                            item.date + "T12:00:00",
+                                        ).getDate()}
+                                    </small>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </article>
+                <article className="sa-card">
+                    <div className="sa-card-head">
+                        <div>
+                            <span className="sa-eyebrow">ATENCIÓN</span>
+                            <h2>Próximos vencimientos</h2>
+                        </div>
+                        <IconBox icon={faClock} tone="amber" />
+                    </div>
+                    <div className="sa-list">
+                        {data.expiring.length ? (
+                            data.expiring.map((item) => (
+                                <div key={item.id}>
+                                    <div>
+                                        <strong>
+                                            {item.organization?.name}
+                                        </strong>
+                                        <small>{item.plan?.name}</small>
+                                    </div>
+                                    <div className="text-end">
+                                        <Status value={item.status} />
+                                        <small>
+                                            {date(
+                                                item.trial_ends_at ||
+                                                    item.current_period_ends_at,
+                                            )}
+                                        </small>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <Empty text="No hay vencimientos en los próximos 7 días." />
+                        )}
+                    </div>
+                </article>
+            </section>
+            <section className="sa-card">
+                <div className="sa-card-head">
+                    <div>
+                        <span className="sa-eyebrow">ACTIVIDAD RECIENTE</span>
+                        <h2>Últimos pagos</h2>
+                    </div>
+                    <IconBox icon={faReceipt} />
+                </div>
+                <PaymentsTable rows={data.recent_payments} />
+            </section>
+        </>
+    );
+}
+function Toolbar({ search, setSearch, placeholder, action }) {
+    return (
+        <div className="sa-toolbar">
+            <label>
+                <FontAwesomeIcon icon={faMagnifyingGlass} />
+                <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={placeholder}
+                />
+            </label>
+            {action}
+        </div>
+    );
+}
+function Pagination({ meta, onPage }) {
+    if (!meta || meta.last_page <= 1) return null;
+    return (
+        <div className="sa-pagination">
+            <span>
+                {meta.from}–{meta.to} de {meta.total}
+            </span>
+            <button
+                disabled={meta.current_page === 1}
+                onClick={() => onPage(meta.current_page - 1)}
+            >
+                <FontAwesomeIcon icon={faChevronLeft} />
+            </button>
+            <strong>
+                {meta.current_page} / {meta.last_page}
+            </strong>
+            <button
+                disabled={meta.current_page === meta.last_page}
+                onClick={() => onPage(meta.current_page + 1)}
+            >
+                <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+        </div>
+    );
+}
+
+export function Organizations({ setNotice }) {
+    const [result, setResult] = useState(null),
+        [search, setSearch] = useState(""),
+        [plans, setPlans] = useState([]),
+        [selected, setSelected] = useState(null),
+        [page, setPage] = useState(1);
+    const load = useCallback(
+        () => api.get("organizations", { search, page }).then(setResult),
+        [search, page],
+    );
+    useEffect(() => {
+        const timer = setTimeout(load, 250);
+        return () => clearTimeout(timer);
+    }, [load]);
+    useEffect(() => {
+        api.get("plans").then(setPlans);
+    }, []);
+    const toggle = async (org) => {
+        await api.patch(`organizations/${org.id}`, {
+            is_active: !org.is_active,
+        });
+        setNotice({ text: "Estado de la organización actualizado." });
+        load();
+    };
+    return (
+        <section className="sa-card">
+            <div className="sa-card-head">
+                <div>
+                    <span className="sa-eyebrow">CLIENTES SAAS</span>
+                    <h2>Organizaciones</h2>
+                    <p>
+                        Administra acceso, capacidad y plan comercial de cada
+                        negocio.
+                    </p>
+                </div>
+            </div>
+            <Toolbar
+                search={search}
+                setSearch={setSearch}
+                placeholder="Buscar organización…"
+            />
+            {!result ? (
+                <Loading />
+            ) : (
+                <div className="sa-table-wrap">
+                    <table className="sa-table">
+                        <thead>
+                            <tr>
+                                <th>Organización</th>
+                                <th>Plan</th>
+                                <th>Uso</th>
+                                <th>Suscripción</th>
+                                <th>Acceso</th>
+                                <th />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.data.map((org) => (
+                                <tr key={org.id}>
+                                    <td>
+                                        <div className="sa-entity">
+                                            <span>{org.name.charAt(0)}</span>
+                                            <div>
+                                                <strong>{org.name}</strong>
+                                                <small>
+                                                    #{org.id} · {org.slug}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>
+                                            {org.subscription?.plan?.name ||
+                                                "Sin plan"}
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <span className="sa-inline-stat">
+                                            <FontAwesomeIcon icon={faUsers} />{" "}
+                                            {org.users_count}
+                                        </span>
+                                        <span className="sa-inline-stat">
+                                            <FontAwesomeIcon icon={faStore} />{" "}
+                                            {org.stores_count}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <Status
+                                            value={
+                                                org.subscription?.status ||
+                                                "MISSING"
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <button
+                                            className={`sa-switch ${org.is_active ? "on" : ""}`}
+                                            onClick={() => toggle(org)}
+                                        >
+                                            <i />
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button
+                                            className="sa-btn sa-btn--soft"
+                                            onClick={() => setSelected(org)}
+                                        >
+                                            <FontAwesomeIcon icon={faPen} />{" "}
+                                            Gestionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            <Pagination meta={result} onPage={setPage} />
+            {selected && (
+                <AssignPlanModal
+                    organization={selected}
+                    plans={plans}
+                    onClose={() => setSelected(null)}
+                    onSaved={() => {
+                        setSelected(null);
+                        load();
+                        setNotice({ text: "Plan asignado correctamente." });
+                    }}
+                />
+            )}
+        </section>
+    );
+}
+export function Users() {
+    const [result, setResult] = useState(null),
+        [search, setSearch] = useState(""),
+        [page, setPage] = useState(1);
+    useEffect(() => {
+        const timer = setTimeout(
+            () => api.get("users", { search, page }).then(setResult),
+            250,
+        );
+        return () => clearTimeout(timer);
+    }, [search, page]);
+    return (
+        <section className="sa-card">
+            <div className="sa-card-head">
+                <div>
+                    <span className="sa-eyebrow">ACCESOS</span>
+                    <h2>Usuarios de la plataforma</h2>
+                    <p>Lectura global para soporte y control de adopción.</p>
+                </div>
+            </div>
+            <Toolbar
+                search={search}
+                setSearch={setSearch}
+                placeholder="Buscar nombre o correo…"
+            />
+            {!result ? (
+                <Loading />
+            ) : (
+                <div className="sa-table-wrap">
+                    <table className="sa-table">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Organización</th>
+                                <th>Idioma</th>
+                                <th>Estado</th>
+                                <th>Registro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.data.map((user) => (
+                                <tr key={user.id}>
+                                    <td>
+                                        <div className="sa-entity">
+                                            <span>
+                                                {user.first_name?.charAt(0)}
+                                            </span>
+                                            <div>
+                                                <strong>
+                                                    {user.first_name}{" "}
+                                                    {user.last_name}
+                                                </strong>
+                                                <small>{user.email}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {user.organizations
+                                            ?.map((o) => o.name)
+                                            .join(", ") || "Sin organización"}
+                                    </td>
+                                    <td>{user.language?.toUpperCase()}</td>
+                                    <td>
+                                        <Status
+                                            value={
+                                                user.status
+                                                    ? "ACTIVE"
+                                                    : "SUSPENDED"
+                                            }
+                                        />
+                                    </td>
+                                    <td>{date(user.created_at)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            <Pagination meta={result} onPage={setPage} />
+        </section>
+    );
+}
+const emptyPlan = {
+    code: "",
+    name: "",
+    description: "",
+    price: "",
+    currency: "USD",
+    billing_interval: "monthly",
+    billing_interval_count: 1,
+    trial_days: 0,
+    grace_days: 3,
+    max_users: "",
+    max_stores: "",
+    max_warehouses: "",
+    max_electronic_documents: "",
+    features: ["*"],
+    sort_order: 0,
+    is_active: true,
+};
+export function Plans({ setNotice }) {
+    const [plans, setPlans] = useState(null),
+        [editing, setEditing] = useState(null);
+    const load = () => api.get("plans").then(setPlans);
+    useEffect(load, []);
+    return (
+        <>
+            <section className="sa-card">
+                <div className="sa-card-head">
+                    <div>
+                        <span className="sa-eyebrow">OFERTA COMERCIAL</span>
+                        <h2>Planes</h2>
+                        <p>
+                            Define precios, frecuencia y límites sin alterar los
+                            datos de tus clientes.
+                        </p>
+                    </div>
+                    <button
+                        className="sa-btn sa-btn--primary"
+                        onClick={() => setEditing(emptyPlan)}
+                    >
+                        <FontAwesomeIcon icon={faPlus} /> Nuevo plan
+                    </button>
+                </div>
+                {!plans ? (
+                    <Loading />
+                ) : (
+                    <div className="sa-plan-grid">
+                        {plans.map((plan) => (
+                            <article
+                                className={`sa-plan ${plan.is_active ? "" : "disabled"}`}
+                                key={plan.id}
+                            >
+                                <div className="sa-plan-top">
+                                    <Status
+                                        value={
+                                            plan.is_active
+                                                ? "ACTIVE"
+                                                : "SUSPENDED"
+                                        }
+                                    />
+                                    <button onClick={() => setEditing(plan)}>
+                                        <FontAwesomeIcon icon={faPen} />
+                                    </button>
+                                </div>
+                                <h3>{plan.name}</h3>
+                                <p>
+                                    {plan.description ||
+                                        "Plan configurable de EcuaPos."}
+                                </p>
+                                <div className="sa-price">
+                                    <strong>
+                                        {money(plan.price, plan.currency)}
+                                    </strong>
+                                    <span>
+                                        /{" "}
+                                        {plan.billing_interval === "yearly"
+                                            ? "año"
+                                            : plan.billing_interval === "weekly"
+                                              ? "semana"
+                                              : plan.billing_interval ===
+                                                  "daily"
+                                                ? "día"
+                                                : "mes"}
+                                    </span>
+                                </div>
+                                <ul>
+                                    <li>
+                                        {plan.max_users || "Sin límite"}{" "}
+                                        usuarios
+                                    </li>
+                                    <li>
+                                        {plan.max_stores || "Sin límite"}{" "}
+                                        tiendas
+                                    </li>
+                                    <li>
+                                        {plan.max_warehouses || "Sin límite"}{" "}
+                                        almacenes
+                                    </li>
+                                    <li>
+                                        {plan.max_electronic_documents ||
+                                            "Sin límite"}{" "}
+                                        documentos electrónicos
+                                    </li>
+                                </ul>
+                                <footer>
+                                    {plan.subscriptions_count} suscripciones
+                                </footer>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </section>
+            {editing && (
+                <PlanModal
+                    plan={editing}
+                    onClose={() => setEditing(null)}
+                    onSaved={() => {
+                        setEditing(null);
+                        load();
+                        setNotice({ text: "Plan guardado correctamente." });
+                    }}
+                />
+            )}
+        </>
+    );
+}
+export function Subscriptions({ setNotice }) {
+    const [result, setResult] = useState(null),
+        [search, setSearch] = useState(""),
+        [page, setPage] = useState(1),
+        [payment, setPayment] = useState(null),
+        [settings, setSettings] = useState(null),
+        [canceling, setCanceling] = useState(null);
+    const load = useCallback(
+        () => api.get("subscriptions", { search, page }).then(setResult),
+        [search, page],
+    );
+    useEffect(() => {
+        const timer = setTimeout(load, 250);
+        return () => clearTimeout(timer);
+    }, [load]);
+    const cancel = async (item) => {
+        try {
+            await api.post(`subscriptions/${item.id}/cancel`, {
+                at_period_end: true,
+            });
+            setCanceling(null);
+            setNotice({ text: "Cancelación programada." });
+            load();
+        } catch (error) {
+            setNotice({
+                type: "error",
+                text:
+                    error.response?.data?.message ||
+                    "No se pudo programar la cancelación.",
+            });
+        }
+    };
+    return (
+        <section className="sa-card">
+            <div className="sa-card-head">
+                <div>
+                    <span className="sa-eyebrow">CICLO DE VIDA</span>
+                    <h2>Suscripciones</h2>
+                    <p>Controla vigencia, renovación y estado de cobro.</p>
+                </div>
+            </div>
+            <Toolbar
+                search={search}
+                setSearch={setSearch}
+                placeholder="Buscar organización…"
+            />
+            {!result ? (
+                <Loading />
+            ) : (
+                <div className="sa-table-wrap">
+                    <table className="sa-table">
+                        <thead>
+                            <tr>
+                                <th>Organización</th>
+                                <th>Plan</th>
+                                <th>Estado</th>
+                                <th>Próximo cobro</th>
+                                <th>Renovación</th>
+                                <th />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.data.map((item) => (
+                                <tr key={item.id}>
+                                    <td>
+                                        <strong>
+                                            {item.organization?.name}
+                                        </strong>
+                                        <small className="sa-block">
+                                            Alta: {date(item.starts_at)}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {item.plan?.name}
+                                        <small className="sa-block">
+                                            {money(
+                                                item.plan?.price,
+                                                item.plan?.currency,
+                                            )}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <Status value={item.status} />
+                                        {item.cancel_at_period_end && (
+                                            <small className="sa-block sa-danger-text">
+                                                Cancelará al vencer
+                                            </small>
+                                        )}
+                                    </td>
+                                    <td>
+                                        {date(
+                                            item.next_billing_at ||
+                                                item.trial_ends_at,
+                                        )}
+                                    </td>
+                                    <td>
+                                        <span
+                                            className={
+                                                item.auto_renew
+                                                    ? "sa-ok-text"
+                                                    : "sa-muted"
+                                            }
+                                        >
+                                            {item.auto_renew
+                                                ? "Automática"
+                                                : "Manual"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="sa-actions">
+                                            <button
+                                                className="sa-btn sa-btn--primary"
+                                                onClick={() => setPayment(item)}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faPlus}
+                                                />{" "}
+                                                Cobro
+                                            </button>
+                                            <button
+                                                className="sa-btn sa-btn--soft"
+                                                onClick={() =>
+                                                    setSettings(item)
+                                                }
+                                            >
+                                                Ajustes
+                                            </button>
+                                            <button
+                                                className="sa-btn sa-btn--soft"
+                                                disabled={
+                                                    item.cancel_at_period_end ||
+                                                    item.status === "CANCELED"
+                                                }
+                                                onClick={() =>
+                                                    setCanceling(item)
+                                                }
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            <Pagination meta={result} onPage={setPage} />
+            {payment && (
+                <PaymentModal
+                    subscription={payment}
+                    onClose={() => setPayment(null)}
+                    onSaved={() => {
+                        setPayment(null);
+                        load();
+                        setNotice({
+                            text: "Pago aplicado; el período fue renovado.",
+                        });
+                    }}
+                />
+            )}
+            {settings && (
+                <SubscriptionModal
+                    subscription={settings}
+                    onClose={() => setSettings(null)}
+                    onSaved={() => {
+                        setSettings(null);
+                        load();
+                        setNotice({
+                            text: "Configuración de renovación actualizada.",
+                        });
+                    }}
+                />
+            )}
+            {canceling && (
+                <ConfirmActionModal
+                    eyebrow="CANCELACIÓN PROGRAMADA"
+                    title={`Cancelar ${canceling.organization?.name}`}
+                    text="La cuenta conservará el acceso hasta finalizar el período ya pagado. Después no se renovará automáticamente."
+                    confirmLabel="Programar cancelación"
+                    onClose={() => setCanceling(null)}
+                    onConfirm={() => cancel(canceling)}
+                />
+            )}
+        </section>
+    );
+}
+export function Payments({ setNotice }) {
+    const [result, setResult] = useState(null),
+        [page, setPage] = useState(1),
+        [review, setReview] = useState(null),
+        [proof, setProof] = useState(null),
+        [proofLoading, setProofLoading] = useState(false);
+    const proofRequest = useRef(0);
+    const load = useCallback(
+        () => api.get("payments", { page }).then(setResult),
+        [page],
+    );
+    useEffect(() => {
+        load();
+    }, [load]);
+    useEffect(() => () => {
+        if (proof?.url) URL.revokeObjectURL(proof.url);
+    }, [proof?.url]);
+
+    const closeProof = useCallback(() => {
+        proofRequest.current += 1;
+        setProofLoading(false);
+        setProof(null);
+    }, []);
+    const openProof = async (item) => {
+        const request = ++proofRequest.current;
+        setProof({ item, url: null });
+        setProofLoading(true);
+        try {
+            const response = await apiConfig.get(
+                `super-admin/payments/${item.id}/proof`,
+                { responseType: "blob" },
+            );
+            const url = URL.createObjectURL(response.data);
+            if (request !== proofRequest.current) {
+                URL.revokeObjectURL(url);
+                return;
+            }
+            setProof({ item, url });
+        } catch (error) {
+            if (request !== proofRequest.current) return;
+            setProof(null);
+            setNotice({
+                type: "error",
+                text:
+                    error.response?.data?.message ||
+                    "No se pudo abrir el comprobante.",
+            });
+        } finally {
+            if (request === proofRequest.current) setProofLoading(false);
+        }
+    };
+    const approve = async (item) => {
+        try {
+            await api.post(`payments/${item.id}/approve`, {});
+            setNotice({ text: "Pago aprobado y suscripción renovada." });
+            load();
+        } catch (error) {
+            setNotice({
+                type: "error",
+                text:
+                    error.response?.data?.message ||
+                    "No se pudo aprobar el pago.",
+            });
+        } finally {
+            setReview(null);
+        }
+    };
+    const reject = async (item, reason) => {
+        try {
+            await api.post(`payments/${item.id}/reject`, {
+                reason: reason.trim(),
+            });
+            setNotice({ text: "Comprobante rechazado." });
+            load();
+        } catch (error) {
+            setNotice({
+                type: "error",
+                text:
+                    error.response?.data?.message ||
+                    "No se pudo rechazar el pago.",
+            });
+        } finally {
+            setReview(null);
+        }
+    };
+    return (
+        <section className="sa-card">
+            <div className="sa-card-head">
+                <div>
+                    <span className="sa-eyebrow">TRAZABILIDAD</span>
+                    <h2>Pagos y transacciones</h2>
+                    <p>
+                        Revisa comprobantes manuales y conserva el historial de
+                        cada renovación.
+                    </p>
+                </div>
+            </div>
+            {!result ? (
+                <Loading />
+            ) : (
+                <PaymentsTable
+                    rows={result.data}
+                    onApprove={(item) => setReview({ type: "approve", item })}
+                    onReject={(item) => setReview({ type: "reject", item })}
+                    onProof={openProof}
+                />
+            )}
+            <Pagination meta={result} onPage={setPage} />
+            {review && (
+                <PaymentReviewModal
+                    review={review}
+                    onClose={() => setReview(null)}
+                    onApprove={approve}
+                    onReject={reject}
+                />
+            )}
+            {proof && <PaymentProofModal
+                payment={proof.item}
+                imageUrl={proof.url}
+                loading={proofLoading}
+                onClose={closeProof}
+            />}
+        </section>
+    );
+}
+function PaymentsTable({ rows, onApprove, onReject, onProof }) {
+    if (!rows?.length) return <Empty text="Aún no se han registrado pagos." />;
+    return (
+        <div className="sa-table-wrap">
+            <table className="sa-table">
+                <thead>
+                    <tr>
+                        <th>Organización</th>
+                        <th>Plan</th>
+                        <th>Monto</th>
+                        <th>Método</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        {onApprove && <th />}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((item) => (
+                        <tr key={item.id}>
+                            <td>
+                                <strong>{item.organization?.name}</strong>
+                                <small className="sa-block">
+                                    {item.provider_reference ||
+                                        `Pago #${item.id}`}
+                                </small>
+                            </td>
+                            <td>{item.plan?.name}</td>
+                            <td>
+                                <strong>
+                                    {money(item.amount, item.currency)}
+                                </strong>
+                            </td>
+                            <td className="sa-capitalize">
+                                {item.method || "—"}
+                            </td>
+                            <td>
+                                <Status value={item.status} />
+                                {item.failure_reason && (
+                                    <small className="sa-block sa-danger-text">
+                                        {item.failure_reason}
+                                    </small>
+                                )}
+                            </td>
+                            <td>
+                                {date(
+                                    item.paid_at ||
+                                        item.submitted_at ||
+                                        item.created_at,
+                                )}
+                            </td>
+                            {onApprove && (
+                                <td>
+                                    <div className="sa-actions">
+                                        {item.proof_path && (
+                                            <button
+                                                className="sa-btn sa-btn--soft"
+                                                onClick={() => onProof(item)}
+                                            >
+                                                <FontAwesomeIcon icon={faEye} />{" "}
+                                                Comprobante
+                                            </button>
+                                        )}
+                                        {item.status === "PENDING" && (
+                                            <>
+                                                <button
+                                                    className="sa-btn sa-btn--approve"
+                                                    onClick={() =>
+                                                        onApprove(item)
+                                                    }
+                                                >
+                                                    <FontAwesomeIcon
+                                                        icon={faCircleCheck}
+                                                    />{" "}
+                                                    Aprobar
+                                                </button>
+                                                <button
+                                                    className="sa-btn sa-btn--reject"
+                                                    onClick={() =>
+                                                        onReject(item)
+                                                    }
+                                                >
+                                                    <FontAwesomeIcon
+                                                        icon={faXmark}
+                                                    />{" "}
+                                                    Rechazar
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+function Modal({ title, eyebrow, onClose, children, footer }) {
+    return (
+        <div
+            className="sa-modal-backdrop"
+            onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+        >
+            <div className="sa-modal">
+                <header>
+                    <div>
+                        <span className="sa-eyebrow">{eyebrow}</span>
+                        <h2>{title}</h2>
+                    </div>
+                    <button onClick={onClose}>×</button>
+                </header>
+                <div className="sa-modal-body">{children}</div>
+                <footer>{footer}</footer>
+            </div>
+        </div>
+    );
+}
+function ConfirmActionModal({
+    eyebrow,
+    title,
+    text,
+    confirmLabel,
+    onClose,
+    onConfirm,
+}) {
+    const [saving, setSaving] = useState(false);
+    const confirm = async () => {
+        setSaving(true);
+        await onConfirm();
+        setSaving(false);
+    };
+    return (
+        <Modal
+            eyebrow={eyebrow}
+            title={title}
+            onClose={onClose}
+            footer={
+                <>
+                    <button className="sa-btn sa-btn--soft" onClick={onClose}>
+                        Volver
+                    </button>
+                    <button
+                        className="sa-btn sa-btn--reject"
+                        disabled={saving}
+                        onClick={confirm}
+                    >
+                        {saving ? "Procesando…" : confirmLabel}
+                    </button>
+                </>
+            }
+        >
+            <div className="sa-payment-hero">
+                <IconBox icon={faTriangleExclamation} tone="amber" />
+                <div>
+                    <strong>Confirma esta acción</strong>
+                    <span>{text}</span>
+                </div>
+            </div>
+        </Modal>
+    );
+}
+function PaymentReviewModal({ review, onClose, onApprove, onReject }) {
+    const rejecting = review.type === "reject";
+    const [reason, setReason] = useState("");
+    const [saving, setSaving] = useState(false);
+    const submit = async () => {
+        if (rejecting && !reason.trim()) return;
+        setSaving(true);
+        await (rejecting
+            ? onReject(review.item, reason)
+            : onApprove(review.item));
+        setSaving(false);
+    };
+    return (
+        <Modal
+            eyebrow="REVISIÓN DE COMPROBANTE"
+            title={`${rejecting ? "Rechazar" : "Aprobar"} pago · ${review.item.organization?.name}`}
+            onClose={onClose}
+            footer={
+                <>
+                    <button className="sa-btn sa-btn--soft" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        className={`sa-btn ${rejecting ? "sa-btn--reject" : "sa-btn--approve"}`}
+                        disabled={saving || (rejecting && !reason.trim())}
+                        onClick={submit}
+                    >
+                        {saving
+                            ? "Procesando…"
+                            : rejecting
+                              ? "Confirmar rechazo"
+                              : "Aprobar y activar"}
+                    </button>
+                </>
+            }
+        >
+            <div className="sa-payment-hero">
+                <IconBox
+                    icon={rejecting ? faXmark : faCircleCheck}
+                    tone={rejecting ? "amber" : "green"}
+                />
+                <div>
+                    <small>Plan solicitado</small>
+                    <strong>{review.item.plan?.name}</strong>
+                </div>
+                <b>{money(review.item.amount, review.item.currency)}</b>
+            </div>
+            {rejecting ? (
+                <Field label="Motivo del rechazo" wide>
+                    <textarea
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Explica qué debe corregir el cliente…"
+                        maxLength={1000}
+                    />
+                </Field>
+            ) : (
+                <p className="sa-helper">
+                    Al aprobar, la organización recuperará el acceso y el nuevo
+                    período comenzará según su vigencia actual.
+                </p>
+            )}
+        </Modal>
+    );
+}
+function PlanModal({ plan, onClose, onSaved }) {
+    const [form, setForm] = useState({ ...emptyPlan, ...plan }),
+        [saving, setSaving] = useState(false),
+        [error, setError] = useState("");
+    const set = (key, value) =>
+        setForm((current) => ({ ...current, [key]: value }));
+    const save = async () => {
+        setSaving(true);
+        setError("");
+        try {
+            const body = {
+                ...form,
+                price: Number(form.price || 0),
+                billing_interval_count: Number(form.billing_interval_count),
+                trial_days: Number(form.trial_days),
+                grace_days: Number(form.grace_days),
+                sort_order: Number(form.sort_order || 0),
+                max_users: form.max_users ? Number(form.max_users) : null,
+                max_stores: form.max_stores ? Number(form.max_stores) : null,
+                max_warehouses: form.max_warehouses
+                    ? Number(form.max_warehouses)
+                    : null,
+                max_electronic_documents: form.max_electronic_documents
+                    ? Number(form.max_electronic_documents)
+                    : null,
+            };
+            plan.id
+                ? await api.put(`plans/${plan.id}`, body)
+                : await api.post("plans", body);
+            onSaved();
+        } catch (e) {
+            setError(
+                e.response?.data?.message || "No se pudo guardar el plan.",
+            );
+            setSaving(false);
+        }
+    };
+    return (
+        <Modal
+            eyebrow="CONFIGURACIÓN COMERCIAL"
+            title={plan.id ? "Editar plan" : "Crear nuevo plan"}
+            onClose={onClose}
+            footer={
+                <>
+                    <button className="sa-btn sa-btn--soft" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        className="sa-btn sa-btn--primary"
+                        disabled={saving}
+                        onClick={save}
+                    >
+                        {saving ? "Guardando…" : "Guardar plan"}
+                    </button>
+                </>
+            }
+        >
+            {error && <div className="sa-form-error">{error}</div>}
+            <div className="sa-form-grid">
+                <Field label="Nombre">
+                    <input
+                        value={form.name}
+                        onChange={(e) => set("name", e.target.value)}
+                    />
+                </Field>
+                <Field label="Código">
+                    <input
+                        value={form.code}
+                        onChange={(e) => set("code", e.target.value)}
+                    />
+                </Field>
+                <Field label="Precio">
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.price}
+                        onChange={(e) => set("price", e.target.value)}
+                    />
+                </Field>
+                <Field label="Frecuencia">
+                    <select
+                        value={form.billing_interval}
+                        onChange={(e) =>
+                            set("billing_interval", e.target.value)
+                        }
+                    >
+                        <option value="monthly">Mensual</option>
+                        <option value="yearly">Anual</option>
+                        <option value="weekly">Semanal</option>
+                        <option value="daily">Diaria</option>
+                    </select>
+                </Field>
+                <Field label="Días de prueba">
+                    <input
+                        type="number"
+                        min="0"
+                        value={form.trial_days}
+                        onChange={(e) => set("trial_days", e.target.value)}
+                    />
+                </Field>
+                <Field label="Días de gracia">
+                    <input
+                        type="number"
+                        min="0"
+                        value={form.grace_days}
+                        onChange={(e) => set("grace_days", e.target.value)}
+                    />
+                </Field>
+                <Field label="Máx. usuarios">
+                    <input
+                        type="number"
+                        placeholder="Sin límite"
+                        value={form.max_users || ""}
+                        onChange={(e) => set("max_users", e.target.value)}
+                    />
+                </Field>
+                <Field label="Máx. tiendas">
+                    <input
+                        type="number"
+                        placeholder="Sin límite"
+                        value={form.max_stores || ""}
+                        onChange={(e) => set("max_stores", e.target.value)}
+                    />
+                </Field>
+                <Field label="Máx. almacenes">
+                    <input
+                        type="number"
+                        placeholder="Sin límite"
+                        value={form.max_warehouses || ""}
+                        onChange={(e) => set("max_warehouses", e.target.value)}
+                    />
+                </Field>
+                <Field label="Documentos electrónicos">
+                    <input
+                        type="number"
+                        placeholder="Sin límite"
+                        value={form.max_electronic_documents || ""}
+                        onChange={(e) =>
+                            set("max_electronic_documents", e.target.value)
+                        }
+                    />
+                </Field>
+                <Field label="Descripción" wide>
+                    <textarea
+                        value={form.description || ""}
+                        onChange={(e) => set("description", e.target.value)}
+                    />
+                </Field>
+                <label className="sa-check">
+                    <input
+                        type="checkbox"
+                        checked={form.is_active}
+                        onChange={(e) => set("is_active", e.target.checked)}
+                    />
+                    <span>Plan disponible para nuevas asignaciones</span>
+                </label>
+            </div>
+        </Modal>
+    );
+}
+function AssignPlanModal({ organization, plans, onClose, onSaved }) {
+    const [planId, setPlanId] = useState(
+            organization.subscription?.saas_plan_id || "",
+        ),
+        [autoRenew, setAutoRenew] = useState(false),
+        [saving, setSaving] = useState(false);
+    const selected = plans.find((p) => String(p.id) === String(planId));
+    const save = async () => {
+        setSaving(true);
+        await api.post(`organizations/${organization.id}/subscription`, {
+            saas_plan_id: Number(planId),
+            auto_renew: autoRenew,
+        });
+        onSaved();
+    };
+    return (
+        <Modal
+            eyebrow="GESTIÓN DE CLIENTE"
+            title={organization.name}
+            onClose={onClose}
+            footer={
+                <>
+                    <button className="sa-btn sa-btn--soft" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        className="sa-btn sa-btn--primary"
+                        disabled={!planId || saving}
+                        onClick={save}
+                    >
+                        {saving ? "Asignando…" : "Asignar plan"}
+                    </button>
+                </>
+            }
+        >
+            <Field label="Plan comercial">
+                <select
+                    value={planId}
+                    onChange={(e) => setPlanId(e.target.value)}
+                >
+                    <option value="">Selecciona un plan</option>
+                    {plans
+                        .filter((p) => p.is_active)
+                        .map((p) => (
+                            <option key={p.id} value={p.id}>
+                                {p.name} · {money(p.price, p.currency)}
+                            </option>
+                        ))}
+                </select>
+            </Field>
+            {selected && (
+                <div className="sa-selection-summary">
+                    <IconBox icon={faLayerGroup} />
+                    <div>
+                        <strong>{selected.name}</strong>
+                        <span>
+                            {selected.max_users || "∞"} usuarios ·{" "}
+                            {selected.max_stores || "∞"} tiendas ·{" "}
+                            {selected.max_warehouses || "∞"} almacenes
+                        </span>
+                    </div>
+                    <b>{money(selected.price, selected.currency)}</b>
+                </div>
+            )}
+            <label className="sa-check">
+                <input
+                    type="checkbox"
+                    checked={autoRenew}
+                    onChange={(e) => setAutoRenew(e.target.checked)}
+                />
+                <span>
+                    Solicitar renovación automática cuando exista una pasarela
+                    vinculada
+                </span>
+            </label>
+            <p className="sa-helper">
+                Activar esta opción no almacena tarjetas. El cobro automático
+                solo operará al conectar una suscripción válida del proveedor de
+                pagos.
+            </p>
+        </Modal>
+    );
+}
+function PaymentModal({ subscription, onClose, onSaved }) {
+    const [form, setForm] = useState({
+            amount: subscription.plan?.price || "",
+            currency: subscription.plan?.currency || "USD",
+            method: "transfer",
+            provider_reference: "",
+            paid_at: new Date().toISOString().slice(0, 10),
+        }),
+        [saving, setSaving] = useState(false),
+        [error, setError] = useState("");
+    const set = (key, value) =>
+        setForm((current) => ({ ...current, [key]: value }));
+    const save = async () => {
+        setSaving(true);
+        setError("");
+        try {
+            await api.post(`subscriptions/${subscription.id}/payments`, {
+                ...form,
+                amount: Number(form.amount),
+                provider_reference: form.provider_reference || null,
+            });
+            onSaved();
+        } catch (e) {
+            setError(
+                e.response?.data?.message || "No se pudo registrar el pago.",
+            );
+            setSaving(false);
+        }
+    };
+    return (
+        <Modal
+            eyebrow="RENOVACIÓN"
+            title={`Registrar cobro · ${subscription.organization?.name}`}
+            onClose={onClose}
+            footer={
+                <>
+                    <button className="sa-btn sa-btn--soft" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        className="sa-btn sa-btn--primary"
+                        disabled={saving || !form.amount}
+                        onClick={save}
+                    >
+                        {saving ? "Procesando…" : "Confirmar y renovar"}
+                    </button>
+                </>
+            }
+        >
+            <div className="sa-payment-hero">
+                <IconBox icon={faCreditCard} />
+                <div>
+                    <small>Plan actual</small>
+                    <strong>{subscription.plan?.name}</strong>
+                </div>
+                <b>{money(form.amount, form.currency)}</b>
+            </div>
+            {error && <div className="sa-form-error">{error}</div>}
+            <div className="sa-form-grid">
+                <Field label="Monto">
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.amount}
+                        onChange={(e) => set("amount", e.target.value)}
+                    />
+                </Field>
+                <Field label="Método">
+                    <select
+                        value={form.method}
+                        onChange={(e) => set("method", e.target.value)}
+                    >
+                        <option value="transfer">Transferencia</option>
+                        <option value="cash">Efectivo</option>
+                        <option value="deposit">Depósito</option>
+                        <option value="card">Tarjeta</option>
+                        <option value="manual">Otro / manual</option>
+                    </select>
+                </Field>
+                <Field label="Referencia">
+                    <input
+                        value={form.provider_reference}
+                        onChange={(e) =>
+                            set("provider_reference", e.target.value)
+                        }
+                        placeholder="Comprobante o transacción"
+                    />
+                </Field>
+                <Field label="Fecha de pago">
+                    <input
+                        type="date"
+                        value={form.paid_at}
+                        onChange={(e) => set("paid_at", e.target.value)}
+                    />
+                </Field>
+            </div>
+            <p className="sa-helper">
+                Al confirmar, EcuaPos extenderá el período desde el vencimiento
+                vigente para no perder días ya pagados.
+            </p>
+        </Modal>
+    );
+}
+function SubscriptionModal({ subscription, onClose, onSaved }) {
+    const [form, setForm] = useState({
+            auto_renew: Boolean(subscription.auto_renew),
+            payment_provider: subscription.payment_provider || "",
+            provider_customer_id: subscription.provider_customer_id || "",
+            provider_subscription_id:
+                subscription.provider_subscription_id || "",
+            admin_notes: subscription.admin_notes || "",
+        }),
+        [saving, setSaving] = useState(false),
+        [error, setError] = useState("");
+    const set = (key, value) =>
+        setForm((current) => ({ ...current, [key]: value }));
+    const save = async () => {
+        setSaving(true);
+        setError("");
+        try {
+            await api.patch(`subscriptions/${subscription.id}`, {
+                ...form,
+                payment_provider: form.payment_provider || null,
+                provider_customer_id: form.provider_customer_id || null,
+                provider_subscription_id: form.provider_subscription_id || null,
+            });
+            onSaved();
+        } catch (e) {
+            setError(
+                e.response?.data?.message ||
+                    "No se pudo actualizar la suscripción.",
+            );
+            setSaving(false);
+        }
+    };
+    return (
+        <Modal
+            eyebrow="COBRO RECURRENTE"
+            title={`Ajustes · ${subscription.organization?.name}`}
+            onClose={onClose}
+            footer={
+                <>
+                    <button className="sa-btn sa-btn--soft" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        className="sa-btn sa-btn--primary"
+                        disabled={saving}
+                        onClick={save}
+                    >
+                        {saving ? "Guardando…" : "Guardar ajustes"}
+                    </button>
+                </>
+            }
+        >
+            {error && <div className="sa-form-error">{error}</div>}
+            <label className="sa-check">
+                <input
+                    type="checkbox"
+                    checked={form.auto_renew}
+                    onChange={(e) => set("auto_renew", e.target.checked)}
+                />
+                <span>Renovar automáticamente al vencer</span>
+            </label>
+            <div className="sa-form-grid">
+                <Field label="Proveedor">
+                    <input
+                        value={form.payment_provider}
+                        onChange={(e) =>
+                            set("payment_provider", e.target.value)
+                        }
+                        placeholder="Proveedor configurado"
+                    />
+                </Field>
+                <Field label="Cliente en la pasarela">
+                    <input
+                        value={form.provider_customer_id}
+                        onChange={(e) =>
+                            set("provider_customer_id", e.target.value)
+                        }
+                        placeholder="cus_…"
+                    />
+                </Field>
+                <Field label="Suscripción en la pasarela" wide>
+                    <input
+                        value={form.provider_subscription_id}
+                        onChange={(e) =>
+                            set("provider_subscription_id", e.target.value)
+                        }
+                        placeholder="sub_…"
+                    />
+                </Field>
+                <Field label="Notas internas" wide>
+                    <textarea
+                        value={form.admin_notes}
+                        onChange={(e) => set("admin_notes", e.target.value)}
+                    />
+                </Field>
+            </div>
+            <p className="sa-helper">
+                Estos identificadores provienen de la pasarela. EcuaPos no
+                solicita ni almacena números de tarjeta.
+            </p>
+        </Modal>
+    );
+}
+const Field = ({ label, wide, children }) => (
+    <label className={`sa-field ${wide ? "sa-field--wide" : ""}`}>
+        <span>{label}</span>
+        {children}
+    </label>
+);

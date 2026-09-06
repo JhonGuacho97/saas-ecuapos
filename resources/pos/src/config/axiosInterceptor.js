@@ -21,7 +21,7 @@ export default {
                     config.headers['Authorization'] = `Bearer ${token}`;
                 } else {
                     if (!window.location.href.includes('login') && !window.location.href.includes('reset-password') && !window.location.href.includes('forgot-password') && !window.location.href.includes('crear-cuenta')) {
-                        window.location.href = environment.URL + '#/' + 'login';
+                        window.location.href = environment.URL + '/sistema#/' + 'login';
                     }
                 }
                 // Validado siempre server-side contra user_store antes de
@@ -65,7 +65,14 @@ export default {
                 localStorage.removeItem(Tokens.ADMIN);
                 localStorage.removeItem(Tokens.USER);
                 localStorage.removeItem(Tokens.GET_PERMISSIONS);
-                window.location.href = environment.URL + '#' + '/login';
+                window.location.href = environment.URL + '/sistema#' + '/login';
+                return Promise.reject({...error});
+            }else if(error.response.status === 402
+                && ['trial_expired', 'subscription_inactive', 'organization_inactive', 'subscription_missing']
+                    .includes(error.response.data?.restriction)) {
+                window.dispatchEvent(new CustomEvent('saas:access-blocked', {
+                    detail: error.response.data,
+                }));
                 return Promise.reject({...error});
             }else if(error.response.status === 403 || error.response.status === 404) {
                 // Sin el reject, esta rama devolvía `undefined` (la
@@ -79,7 +86,7 @@ export default {
                 // pantalla a la que redirige también disparaba el mismo
                 // 403 (ver SellerDashboard.js llamando /api/sales sin
                 // el permiso manage_sale).
-                window.location.href = environment.URL + '#' + '/app/dashboard';
+                window.location.href = environment.URL + '/sistema#' + '/app/dashboard';
                 return Promise.reject({...error});
             }else {
                 return Promise.reject({...error})

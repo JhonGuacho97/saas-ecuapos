@@ -9,6 +9,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class SaaSOnboardingTest extends TestCase
@@ -95,6 +96,10 @@ class SaaSOnboardingTest extends TestCase
             'password' => 'ClaveSaaS123',
             'language_code' => 'sp',
         ])->assertOk()->assertJsonPath('data.user.email', $email);
+
+        Sanctum::actingAs(User::findOrFail($userId), ['*']);
+        $this->withHeader('X-Store-Id', $storeId)->getJson('/api/config')->assertOk()
+            ->assertJsonPath('data.can_manage_subscription', true);
     }
 
     public function test_duplicate_owner_email_does_not_create_partial_tenant(): void

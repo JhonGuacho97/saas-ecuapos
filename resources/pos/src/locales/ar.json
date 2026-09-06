@@ -4,6 +4,7 @@
     "header.pos.title": "نقاط البيع",
     "header.profile-menu.profile.label": "حساب تعريفي",
     "header.profile-menu.change-password.label": "غير كلمة السر",
+    "header.profile-menu.subscription.label": "إدارة الاشتراكات",
     "header.profile-menu.logout.label": "تسجيل خروج",
     "dashboard.salesReturn.title": "عائد المبيعات",
     "dashboard.top-customers.title": "أفضل 5 عملاء",

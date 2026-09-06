@@ -27,7 +27,7 @@ const MasterLayout = (props) => {
 
     useEffect(() => {
         if (!token) {
-            window.location.href = environment.URL + "#" + "/login";
+            window.location.href = environment.URL + "/sistema#" + "/login";
         }
     }, []);
 

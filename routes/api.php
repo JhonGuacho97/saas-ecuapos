@@ -44,6 +44,8 @@ use App\Http\Controllers\API\StoreAPIController;
 use App\Http\Controllers\API\OrganizationAPIController;
 use App\Http\Controllers\API\SaaSOnboardingController;
 use App\Http\Controllers\API\SaaSSuperAdminController;
+use App\Http\Controllers\API\SaaSSubscriptionPortalController;
+use App\Http\Controllers\API\LandingPageSettingController;
 use App\Http\Controllers\API\CatalogSettingAPIController;
 use App\Http\Controllers\API\CatalogOrderAPIController;
 use App\Http\Controllers\API\PublicCatalogController;
@@ -94,7 +96,18 @@ Route::middleware(['auth:sanctum', 'super.admin'])->prefix('super-admin')->group
     Route::patch('subscriptions/{subscription}', [SaaSSuperAdminController::class, 'updateSubscription']);
     Route::post('subscriptions/{subscription}/cancel', [SaaSSuperAdminController::class, 'cancelSubscription']);
     Route::get('payments', [SaaSSuperAdminController::class, 'payments']);
+    Route::get('payments/{payment}/proof', [SaaSSuperAdminController::class, 'paymentProof']);
     Route::post('subscriptions/{subscription}/payments', [SaaSSuperAdminController::class, 'recordPayment']);
+    Route::post('payments/{payment}/approve', [SaaSSuperAdminController::class, 'approvePayment']);
+    Route::post('payments/{payment}/reject', [SaaSSuperAdminController::class, 'rejectPayment']);
+    Route::get('landing-page', [LandingPageSettingController::class, 'show']);
+    Route::put('landing-page', [LandingPageSettingController::class, 'update']);
+    Route::post('landing-page/upload', [LandingPageSettingController::class, 'upload']);
+});
+
+Route::middleware('auth:sanctum')->prefix('subscription-portal')->group(function () {
+    Route::get('/', [SaaSSubscriptionPortalController::class, 'show']);
+    Route::post('/payments', [SaaSSubscriptionPortalController::class, 'submitPayment']);
 });
 
 Route::get('/sri/lookup', [SriController::class, 'lookup']);

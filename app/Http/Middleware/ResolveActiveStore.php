@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\SubscriptionRestrictionException;
 use App\Models\Organization;
 use App\Models\Store;
 use Closure;
@@ -77,10 +78,11 @@ class ResolveActiveStore
             $request->attributes->set('current_store_id', $resolvedStoreId);
         }
 
-        $organizationIds = $user->organizations()
-            ->where('organizations.is_active', true)
+        $memberOrganizationIds = $user->organizations()
             ->wherePivot('status', Organization::STATUS_ACTIVE)
             ->pluck('organizations.id');
+        $organizationIds = Organization::whereIn('id', $memberOrganizationIds)
+            ->where('is_active', true)->pluck('id');
         $requestedOrganizationId = $request->header('X-Organization-Id');
         $resolvedOrganizationId = null;
 
@@ -91,12 +93,28 @@ class ResolveActiveStore
             // transitorios/fixtures heredados. Una tienda SaaS real exige
             // además membresía activa en su organización.
             if ($storeOrganizationId !== null) {
+                if ($memberOrganizationIds->contains((int) $storeOrganizationId)
+                    && ! $organizationIds->contains((int) $storeOrganizationId)) {
+                    throw new SubscriptionRestrictionException(
+                        'Esta organización está temporalmente suspendida.',
+                        'organization_inactive',
+                        402
+                    );
+                }
                 if (! $organizationIds->contains((int) $storeOrganizationId)) {
                     throw new AccessDeniedHttpException('No tiene acceso a la organización de esta tienda.');
                 }
                 $resolvedOrganizationId = (int) $storeOrganizationId;
             }
         } elseif ($requestedOrganizationId !== null && $requestedOrganizationId !== '') {
+            if ($memberOrganizationIds->contains((int) $requestedOrganizationId)
+                && ! $organizationIds->contains((int) $requestedOrganizationId)) {
+                throw new SubscriptionRestrictionException(
+                    'Esta organización está temporalmente suspendida.',
+                    'organization_inactive',
+                    402
+                );
+            }
             if (! $organizationIds->contains((int) $requestedOrganizationId)) {
                 throw new AccessDeniedHttpException('No tiene acceso a esta organización.');
             }

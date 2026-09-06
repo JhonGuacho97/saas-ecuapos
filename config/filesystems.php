@@ -47,6 +47,16 @@ return [
             'throw' => false,
         ],
 
+        // Comprobantes SaaS: nunca deben quedar detrás de /uploads o de
+        // un enlace público. Se entregan únicamente desde una ruta
+        // autenticada para superadministradores.
+        'saas_private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         'local_protected' => [
             'driver' => 'local',
             'root' => public_path('uploads'),

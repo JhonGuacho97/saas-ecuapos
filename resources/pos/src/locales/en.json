@@ -108,6 +108,7 @@
     "login-status.failed": "Failed",
     "globally.add-cart-btn": "Add to Cart",
     "header.profile-menu.change-password.label": "Change Password",
+    "header.profile-menu.subscription.label": "Manage subscriptions",
     "header.profile-menu.logout.label": "Logout",
     "header.store-menu.label": "Store",
     "header.language-menu.label": "Language",

@@ -101,6 +101,7 @@
     "header.quick-add.title": "Crear nuevo",
     "header.profile-menu.profile.label": "Perfil",
     "header.profile-menu.change-password.label": "Cambia la contraseña",
+    "header.profile-menu.subscription.label": "Administrar suscripciones",
     "header.profile-menu.logout.label": "Cerrar sesión",
     "header.store-menu.label": "Tienda",
     "header.language-menu.label": "Idioma",
