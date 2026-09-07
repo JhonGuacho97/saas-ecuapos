@@ -86,7 +86,14 @@ export default {
                 // pantalla a la que redirige también disparaba el mismo
                 // 403 (ver SellerDashboard.js llamando /api/sales sin
                 // el permiso manage_sale).
-                window.location.href = environment.URL + '/sistema#' + '/app/dashboard';
+                // Algunas pantallas manejan el 403/404 de forma local
+                // (por ejemplo, el visor privado de comprobantes). En esos
+                // casos navegar al dashboard desmontaba el modal y dejaba
+                // una pantalla en blanco. El request puede pedir conservar
+                // la ubicación y mostrar su propio mensaje de error.
+                if (!error.config?.skipGlobalErrorRedirect) {
+                    window.location.href = environment.URL + '/sistema#' + '/app/dashboard';
+                }
                 return Promise.reject({...error});
             }else {
                 return Promise.reject({...error})

@@ -88,17 +88,19 @@ class AppBaseController extends Controller
     /** Valida tanto la restricción del usuario como la pertenencia a la tienda. */
     protected function authorizeWarehouseAccess(?int $warehouseId): void
     {
+        if ($warehouseId === null) {
+            throw new AccessDeniedHttpException('Debe seleccionar una bodega válida.');
+        }
+
         $restricted = $this->restrictedWarehouseId();
         if ($restricted !== null && $warehouseId !== $restricted) {
             throw new AccessDeniedHttpException('No tiene permiso para acceder a datos de esta sucursal.');
         }
 
-        $storeId = $this->currentStoreId();
-        if ($storeId !== null && $warehouseId !== null) {
-            $belongs = Warehouse::whereKey($warehouseId)->where('store_id', $storeId)->active()->exists();
-            if (! $belongs) {
-                throw new AccessDeniedHttpException('La bodega no pertenece a la tienda activa o se encuentra desactivada.');
-            }
+        $storeId = $this->requireCurrentStoreId();
+        $belongs = Warehouse::whereKey($warehouseId)->where('store_id', $storeId)->active()->exists();
+        if (! $belongs) {
+            throw new AccessDeniedHttpException('La bodega no pertenece a la tienda activa o se encuentra desactivada.');
         }
     }
 
@@ -111,9 +113,8 @@ class AppBaseController extends Controller
      */
     protected function scopeQueryToCurrentStore($query, string $warehouseColumn = 'warehouse_id')
     {
-        if ($storeId = $this->currentStoreId()) {
-            $query->whereIn($warehouseColumn, Warehouse::where('store_id', $storeId)->active()->pluck('id'));
-        }
+        $storeId = $this->requireCurrentStoreId();
+        $query->whereIn($warehouseColumn, Warehouse::where('store_id', $storeId)->active()->pluck('id'));
 
         return $query;
     }
@@ -130,8 +131,8 @@ class AppBaseController extends Controller
      */
     protected function authorizeStoreOwnership($model): void
     {
-        $storeId = $this->currentStoreId();
-        if ($storeId !== null && $model !== null && $model->store_id !== null && $model->store_id !== $storeId) {
+        $storeId = $this->requireCurrentStoreId();
+        if ($model === null || $model->store_id === null || (int) $model->store_id !== $storeId) {
             throw new AccessDeniedHttpException('No tiene permiso para acceder a este registro.');
         }
     }
@@ -163,6 +164,30 @@ class AppBaseController extends Controller
         return requireCurrentStoreId();
     }
 
+    /** Valida una referencia recibida por ID contra la tienda activa. */
+    protected function authorizeStoreModelId(string $modelClass, $id): void
+    {
+        $storeId = $this->requireCurrentStoreId();
+        if (! $id || ! $modelClass::whereKey($id)->where('store_id', $storeId)->exists()) {
+            throw new AccessDeniedHttpException('Uno de los registros seleccionados no pertenece a la tienda activa.');
+        }
+    }
+
+    /** Valida los product_id anidados antes de crear movimientos o documentos. */
+    protected function authorizeProductItems(array $items): void
+    {
+        $productIds = collect($items)->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->unique();
+        if ($productIds->isEmpty()) {
+            return;
+        }
+
+        $ownedCount = \App\Models\Product::where('store_id', $this->requireCurrentStoreId())
+            ->whereIn('id', $productIds)->count();
+        if ($ownedCount !== $productIds->count()) {
+            throw new AccessDeniedHttpException('Uno de los productos seleccionados no pertenece a la tienda activa.');
+        }
+    }
+
     protected function currentOrganizationId(): ?int
     {
         return currentOrganizationId();
@@ -180,11 +205,10 @@ class AppBaseController extends Controller
      */
     protected function scopeSalesPaymentsToCurrentStore($query)
     {
-        if ($storeId = $this->currentStoreId()) {
-            $query->whereHas('sale', function ($q) use ($storeId) {
-                $this->scopeQueryToCurrentStore($q);
-            });
-        }
+        $this->requireCurrentStoreId();
+        $query->whereHas('sale', function ($q) {
+            $this->scopeQueryToCurrentStore($q);
+        });
 
         return $query;
     }

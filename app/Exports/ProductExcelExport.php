@@ -7,13 +7,18 @@ use Maatwebsite\Excel\Concerns\FromView;
 
 class ProductExcelExport implements FromView
 {
+    public function __construct(private readonly int $storeId)
+    {
+    }
+
     public function view(): \Illuminate\Contracts\View\View
     {
+        $query = Product::with('productCategory', 'brand', 'stock')
+            ->where('store_id', $this->storeId);
         if (isset(request()->id)) {
-            $products = Product::with('productCategory', 'brand', 'stock')->where('product_unit', request()->id)->get();
-        } else {
-            $products = Product::with('productCategory', 'brand', 'stock')->get();
+            $query->where('product_unit', request()->id);
         }
+        $products = $query->get();
 
         return view('excel.product-excel-export', ['products' => $products]);
     }

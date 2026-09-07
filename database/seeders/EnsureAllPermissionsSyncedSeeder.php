@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Role;
+use App\Models\Store;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 
@@ -79,7 +81,13 @@ class EnsureAllPermissionsSyncedSeeder extends Seeder
 
         $adminRoles = Role::whereName(Role::ADMIN)->get();
 
-        if ($adminRoles->isEmpty()) {
+        // En una base SaaS nueva todavía no existe ningún tenant. El catálogo
+        // global de permisos sí debe quedar listo, pero crear aquí un rol
+        // admin con store_id NULL hace que Spatie lo trate como rol global y
+        // bloquee el primer onboarding al intentar crear admin para su tienda.
+        // En una actualización heredada ya habrá una tienda o al menos un
+        // usuario, por lo que se conserva el comportamiento anterior.
+        if ($adminRoles->isEmpty() && (Store::query()->exists() || User::query()->exists())) {
             $adminRoles = collect([Role::create([
                 'name' => 'admin',
                 'display_name' => ' Admin',

@@ -252,8 +252,9 @@ class SaleRepository extends BaseRepository
      */
     private function enviarNotificacionesVenta(Sale $sale): void
     {
-        $mailTemplate = MailTemplate::where('type', MailTemplate::MAIL_TYPE_SALE)->first();
-        $smsTemplate = SmsTemplate::where('type', SmsTemplate::SMS_TYPE_SALE)->first();
+        $storeId = $sale->warehouse?->store_id ?? currentStoreId();
+        $mailTemplate = MailTemplate::effectiveForStore($storeId, MailTemplate::MAIL_TYPE_SALE);
+        $smsTemplate = SmsTemplate::effectiveForStore($storeId, SmsTemplate::SMS_TYPE_SALE);
 
         $subject = 'Venta al cliente';
 
@@ -305,20 +306,20 @@ class SaleRepository extends BaseRepository
 
             $client = new \GuzzleHttp\Client();
 
-            $url = SmsSetting::where('key', 'url')->value('value');
+            $url = SmsSetting::effectiveValue($storeId, 'url');
             // $token = SmsSetting::where('key', 'token')->value('value');
             //            $url = "https://xrjv8e.api.infobip.com/sms/2/text/advanced";
 
-            $data = SmsSetting::where('key', 'payload')->value('value');
+            $data = SmsSetting::effectiveValue($storeId, 'payload');
 
             $data = preg_replace('/\s/', '', $data);
 
             $data = json_decode($data, true);
 
-            $toKey = SmsSetting::where('key', 'mobile_key')->value('value');
+            $toKey = SmsSetting::effectiveValue($storeId, 'mobile_key');
             $number = $customer->phone;
 
-            $messageKey = SmsSetting::where('key', 'message_key')->value('value');
+            $messageKey = SmsSetting::effectiveValue($storeId, 'message_key');
 
             $data = replaceArrayValue($data, $toKey, $number);
             $data = replaceArrayValue($data, $messageKey, $message);

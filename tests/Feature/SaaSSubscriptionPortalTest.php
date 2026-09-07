@@ -7,6 +7,7 @@ use App\Models\OrganizationSubscription;
 use App\Models\Permission;
 use App\Models\SaaSPayment;
 use App\Models\SaaSPlan;
+use App\Models\SaaSSubscriptionEvent;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -179,6 +180,25 @@ class SaaSSubscriptionPortalTest extends TestCase
             ->assertOk()->assertJsonPath('data.can_manage', false);
     }
 
+    public function test_portal_requires_an_explicit_organization_when_user_has_multiple_memberships(): void
+    {
+        [$user] = $this->expiredContext();
+        $otherOrganization = Organization::create([
+            'name' => 'Segunda organización '.uniqid(),
+            'slug' => 'second-'.uniqid(),
+            'is_active' => true,
+        ]);
+        $otherOrganization->users()->attach($user->id, [
+            'role' => Organization::ROLE_OWNER,
+            'status' => Organization::STATUS_ACTIVE,
+        ]);
+        Sanctum::actingAs($user, ['*']);
+
+        $this->getJson('/api/subscription-portal')
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Debe seleccionar una organización para administrar su suscripción.');
+    }
+
     public function test_super_admin_approval_reactivates_organization_and_subscription(): void
     {
         [$member, $organization, $plan, $subscription] = $this->expiredContext();
@@ -233,6 +253,54 @@ class SaaSSubscriptionPortalTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.renewal.can_renew_current_plan', true);
         $this->submitProof($organization, $plan)->assertCreated();
+    }
+
+    public function test_owner_can_schedule_cancellation_with_reason_without_losing_paid_access(): void
+    {
+        [$owner, $organization, , $subscription] = $this->activeContext(now()->addDays(20));
+        Sanctum::actingAs($owner, ['*']);
+
+        $this->withHeader('X-Organization-Id', $organization->id)
+            ->postJson('/api/subscription-portal/cancel', [
+                'reason' => 'MISSING_FEATURES',
+                'note' => 'Necesitamos una integración adicional.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.cancel_at_period_end', true);
+
+        $fresh = $subscription->fresh();
+        $this->assertSame(OrganizationSubscription::STATUS_ACTIVE, $fresh->status);
+        $this->assertTrue($fresh->cancel_at_period_end);
+        $this->assertFalse($fresh->auto_renew);
+        $this->assertDatabaseHas('saas_subscription_events', [
+            'organization_subscription_id' => $subscription->id,
+            'type' => 'CANCEL_SCHEDULED',
+            'performed_by' => $owner->id,
+        ]);
+        $event = SaaSSubscriptionEvent::where('organization_subscription_id', $subscription->id)
+            ->where('type', 'CANCEL_SCHEDULED')->latest('id')->firstOrFail();
+        $this->assertSame('MISSING_FEATURES', $event->context['reason']);
+        $this->assertSame('Necesitamos una integración adicional.', $event->context['note']);
+
+        $this->withHeader('X-Organization-Id', $organization->id)
+            ->getJson('/api/subscription-portal')
+            ->assertOk()
+            ->assertJsonPath('data.can_access', true)
+            ->assertJsonPath('data.subscription.cancel_at_period_end', true);
+    }
+
+    public function test_other_cancellation_reason_requires_a_note(): void
+    {
+        [$owner, $organization, , $subscription] = $this->activeContext(now()->addDays(20));
+        Sanctum::actingAs($owner, ['*']);
+
+        $this->withHeader('X-Organization-Id', $organization->id)
+            ->postJson('/api/subscription-portal/cancel', ['reason' => 'OTHER'])
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Escribe una nota cuando selecciones “Otro motivo”.');
+
+        $this->assertFalse($subscription->fresh()->cancel_at_period_end);
     }
 
     public function test_approved_plan_change_starts_immediately_instead_of_using_the_old_expiration(): void
@@ -320,11 +388,16 @@ class SaaSSubscriptionPortalTest extends TestCase
 
     private function user(bool $superAdmin = false): User
     {
-        return User::create([
+        $user = User::create([
             'first_name' => $superAdmin ? 'Super' : 'Cliente', 'last_name' => 'SaaS',
             'email' => uniqid('portal-').'@example.test', 'phone' => '0999999999',
             'password' => bcrypt('secret123'), 'language' => 'sp', 'status' => true,
-            'is_super_admin' => $superAdmin,
         ]);
+
+        if ($superAdmin) {
+            $user->forceFill(['is_super_admin' => true])->save();
+        }
+
+        return $user;
     }
 }

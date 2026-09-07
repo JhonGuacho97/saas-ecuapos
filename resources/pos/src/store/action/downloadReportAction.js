@@ -2,6 +2,7 @@ import apiConfig from '../../config/apiConfig';
 import { toastType } from '../../constants';
 import { addToast } from './toastAction';
 import { setLoading } from './loadingAction';
+import { downloadAuthenticatedFile } from '../../shared/downloadAuthenticatedFile';
 
 /**
  * Generic Excel report downloader.
@@ -41,7 +42,8 @@ export const downloadExcel = (endpoint, responseKey, onSuccess = null, isLoading
         try {
             const response = await apiConfig.get(endpoint);
             const url = response.data.data[responseKey];
-            window.open(url, '_blank');
+            const filename = decodeURIComponent(url.split('/').pop().split('?')[0] || 'reporte.xlsx');
+            await downloadAuthenticatedFile(url, { filename });
             if (onSuccess) onSuccess();
         } catch (error) {
             const message = error?.response?.data?.message || 'Something went wrong';
@@ -82,7 +84,7 @@ export const downloadPdf = (endpoint, responseKey, isLoading = true) =>
         try {
             const response = await apiConfig.get(endpoint);
             const url = response.data.data[responseKey];
-            window.open(url, '_blank');
+            await downloadAuthenticatedFile(url, { open: true, filename: 'reporte.pdf' });
         } catch (error) {
             const message = error?.response?.data?.message || 'Something went wrong';
             dispatch(addToast({ text: message, type: toastType.ERROR }));

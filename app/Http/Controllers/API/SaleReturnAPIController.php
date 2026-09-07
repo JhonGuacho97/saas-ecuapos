@@ -92,6 +92,8 @@ class SaleReturnAPIController extends AppBaseController
     public function store(CreateSaleReturnRequest $request): SaleReturnResource
     {
         $this->authorizeWarehouseAccess($request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($request->input('sale_return_items', []));
         $input = $request->all();
         $saleReturn = $this->saleReturnRepository->storeSaleReturn($input);
 
@@ -120,6 +122,8 @@ class SaleReturnAPIController extends AppBaseController
 
     public function editBySale($saleId)
     {
+        $sale = Sale::findOrFail($saleId);
+        $this->authorizeWarehouseAccess($sale->warehouse_id);
         $salesReturn = SaleReturn::where('sale_id', $saleId)->first();
         if (empty($salesReturn)) {
             return $this->sendError('Sale Return is not created');
@@ -142,6 +146,8 @@ class SaleReturnAPIController extends AppBaseController
             throw new UnprocessableEntityHttpException('Una devolución vinculada a caja no puede editarse. Revierte primero su movimiento de efectivo.');
         }
         $this->authorizeWarehouseAccess($request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($request->input('sale_return_items', []));
         $input = $request->all();
         $saleReturn = $this->saleReturnRepository->updateSaleReturn($input, $id);
 
@@ -196,7 +202,7 @@ class SaleReturnAPIController extends AppBaseController
         $keyName = [
             'email', 'company_name', 'phone', 'address',
         ];
-        $salesReturn['company_info'] = Setting::whereIn('key', $keyName)->pluck('value', 'key')->toArray();
+        $salesReturn['company_info'] = collect($keyName)->mapWithKeys(fn ($key) => [$key => getSettingValue($key)])->all();
 
         return $this->sendResponse($salesReturn, 'Sale Return information retrieved successfully');
     }
@@ -207,22 +213,22 @@ class SaleReturnAPIController extends AppBaseController
      */
     public function pdfDownload(SaleReturn $saleReturn): JsonResponse
     {
+        $this->authorizeWarehouseAccess($saleReturn->warehouse_id);
         $saleReturn = $saleReturn->load(
             'customer',
             'saleReturnItems.product',
             'saleReturnItems.productPresentation.variationType'
         );
         $data = [];
-        if (Storage::exists('pdf/sale_return-'.$saleReturn->reference_code.'.pdf')) {
-            Storage::delete('pdf/sale_return-'.$saleReturn->reference_code.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/sale_return-'.$saleReturn->reference_code.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
         $pdf = PDF::loadView('pdf.sale-return-pdf', compact('saleReturn'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/sale_return-'.$saleReturn->reference_code.'.pdf',
-            $pdf->output());
-        $data['sale_return_pdf_url'] = Storage::url('pdf/sale_return-'.$saleReturn->reference_code.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['sale_return_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'Sale return pdf retrieved Successfully');
     }

@@ -86,7 +86,7 @@ class LandingPageTest extends TestCase
 
     private function user(bool $superAdmin): User
     {
-        return User::create([
+        $user = User::create([
             'first_name' => $superAdmin ? 'Super' : 'Usuario',
             'last_name' => 'Landing',
             'email' => uniqid('landing-').'@example.test',
@@ -94,7 +94,12 @@ class LandingPageTest extends TestCase
             'password' => bcrypt('secret123'),
             'language' => 'sp',
             'status' => true,
-            'is_super_admin' => $superAdmin,
         ]);
+
+        if ($superAdmin) {
+            $user->forceFill(['is_super_admin' => true])->save();
+        }
+
+        return $user;
     }
 }

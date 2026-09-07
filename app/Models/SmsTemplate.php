@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Contracts\JsonResourceful;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * App\Models\SmsTemplate
@@ -35,7 +36,7 @@ class SmsTemplate extends BaseModel implements JsonResourceful
 
     protected $table = 'sms_templates';
 
-    protected $fillable = ['template_name', 'content', 'type', 'status'];
+    protected $fillable = ['store_id', 'template_name', 'content', 'type', 'status'];
 
     const SMS_TYPE_SALE = 1;
 
@@ -66,5 +67,23 @@ class SmsTemplate extends BaseModel implements JsonResourceful
         ];
 
         return $fields;
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    public static function effectiveForStore(?int $storeId, $type): ?self
+    {
+        return static::where('type', $type)
+            ->where(function ($query) use ($storeId) {
+                $query->whereNull('store_id');
+                if ($storeId) {
+                    $query->orWhere('store_id', $storeId);
+                }
+            })
+            ->orderByDesc('store_id')
+            ->first();
     }
 }

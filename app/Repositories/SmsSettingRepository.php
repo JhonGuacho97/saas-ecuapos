@@ -47,7 +47,7 @@ class SmsSettingRepository extends BaseRepository
     /**
      * @return mixed
      */
-    public function updateSmsSettings($input)
+    public function updateSmsSettings($input, int $storeId)
     {
         try {
             DB::beginTransaction();
@@ -55,14 +55,16 @@ class SmsSettingRepository extends BaseRepository
             $smsSettingKeys = [];
 
             foreach ($input['sms_data'] as $key => $value) {
-                $keyExist = SmsSetting::where('key', $value['key'])->exists();
+                $keyExist = SmsSetting::where('store_id', $storeId)->where('key', $value['key'])->exists();
                 $smsSettingKeys[] = $value['key'];
                 if ($keyExist) {
                     if (isset($value) && ! empty($value)) {
-                        SmsSetting::where('key', $value['key'])->first()->update(['value' => $value['value']]);
+                        SmsSetting::where('store_id', $storeId)->where('key', $value['key'])
+                            ->first()->update(['value' => $value['value']]);
                     }
                 } else {
                     SmsSetting::create([
+                        'store_id' => $storeId,
                         'key' => $value['key'],
                         'value' => $value['value'],
                     ]);
@@ -71,7 +73,7 @@ class SmsSettingRepository extends BaseRepository
 
             $smsSettingKeys = array_merge($smsSettingKeys, ['url', 'mobile_key', 'message_key', 'payload']);
 
-            $deleteKeysRecords = SmsSetting::whereNotIn('key', $smsSettingKeys)->delete();
+            SmsSetting::where('store_id', $storeId)->whereNotIn('key', $smsSettingKeys)->delete();
 
             DB::commit();
 

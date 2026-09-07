@@ -24,7 +24,6 @@ import ReactSelect from "../../shared/select/reactSelect";
 import HeaderTitle from "../header/HeaderTitle";
 import TopProgressBar from "../../shared/components/loaders/TopProgressBar";
 import dateFormatOptions from "./dateFormatOptions.json";
-import { downloadBackup } from "../../store/action/backupAction";
 import "./settings.scss";
 
 const Settings = (props) => {
@@ -39,7 +38,6 @@ const Settings = (props) => {
         editSetting,
         currencies,
         settings,
-        downloadBackup,
         fetchState,
         countryState,
         dateFormat,
@@ -126,7 +124,6 @@ const Settings = (props) => {
     const [checked, setChecked] = useState(false);
     const [logoChecked, setLogoChecked] = useState(false);
     const [showAppName, setShowAppName] = useState(false);
-    const [isBackingUp, setIsBackingUp] = useState(false);
     const [selectedLanguage] = useState(
         newLanguages
             ? [
@@ -150,13 +147,6 @@ const Settings = (props) => {
             : null
     );
     const newSms = sms.filter((item) => item.value);
-
-    const onBackupDownload = async () => {
-        setIsBackingUp(true);
-        await downloadBackup();
-        setIsBackingUp(false);
-    };
-
 
     useEffect(() => {
         fetchSetting();
@@ -1325,34 +1315,6 @@ const Settings = (props) => {
                                 </button>
                             </Form>
                         </article>
-                        <article className="settings-tool-card settings-tool-card--backup">
-                            <span className="settings-tool-icon"><i className="bi bi-database-check" /></span>
-                            <div className="settings-tool-copy">
-                                <h3>{getFormattedMessage("settings.backup.title")}</h3>
-                                <p>{getFormattedMessage("settings.backup.description")}</p>
-                            </div>
-                                <button
-                                    className="btn settings-tool-button"
-                                    onClick={onBackupDownload}
-                                    disabled={isBackingUp}
-                                >
-                                    {isBackingUp ? (
-                                        <>
-                                            <span
-                                                className="spinner-border spinner-border-sm me-2"
-                                                role="status"
-                                                aria-hidden="true"
-                                            />
-                                            {getFormattedMessage("settings.backup.generating")}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <i className="fa fa-database me-2" />
-                                            {getFormattedMessage("settings.backup.button")}
-                                        </>
-                                    )}
-                                </button>
-                        </article>
                     </div>
                 </section>
             </main>
@@ -1389,5 +1351,4 @@ export default connect(mapStateToProps, {
     fetchAllWarehouses,
     editSetting,
     fetchState,
-    downloadBackup,
 })(Settings);

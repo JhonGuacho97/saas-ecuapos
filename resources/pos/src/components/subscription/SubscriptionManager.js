@@ -11,6 +11,7 @@ import TopProgressBar from '../../shared/components/loaders/TopProgressBar';
 import apiConfig from '../../config/apiConfig';
 import PaymentCheckout from './PaymentCheckout';
 import PlanCards from './PlanCards';
+import CancelSubscriptionModal from './CancelSubscriptionModal';
 import { money, shortDate, statusLabel } from './subscriptionHelpers';
 import './subscription-manager.scss';
 
@@ -31,6 +32,8 @@ export default function SubscriptionManager() {
     const [portal, setPortal] = useState(null);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
+    const [canceling, setCanceling] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -79,6 +82,7 @@ export default function SubscriptionManager() {
                 </header>
 
                 {error && <div className="sub-error sm-block">{error}</div>}
+                {notice && <div className="sub-success sm-block">{notice}</div>}
 
                 <section className={`sm-status ${expired ? 'sm-status--danger' : ''}`}>
                     <div className="sm-status-main">
@@ -109,6 +113,18 @@ export default function SubscriptionManager() {
                                 Activaremos el plan apenas verifiquemos el pago.
                             </span>
                         </div>
+                    </section>
+                )}
+
+                {summary.cancel_at_period_end ? (
+                    <section className="sm-cancellation-scheduled">
+                        <span className="sm-status-icon"><FontAwesomeIcon icon={faClock} /></span>
+                        <div><strong>Cancelación programada</strong><span>Podrás utilizar EcuaPOS hasta {shortDate(renewalDate)}. El plan no se renovará después de esa fecha.</span></div>
+                    </section>
+                ) : !expired && (
+                    <section className="sm-subscription-actions">
+                        <div><strong>¿Ya no deseas continuar con el plan?</strong><span>Puedes programar la cancelación sin perder los días que ya tienes disponibles.</span></div>
+                        <button type="button" className="sub-btn sub-btn--danger-outline" onClick={() => setCanceling(true)}>Cancelar suscripción</button>
                     </section>
                 )}
 
@@ -159,6 +175,15 @@ export default function SubscriptionManager() {
                         />
                     )}
                 </section>
+                {canceling && <CancelSubscriptionModal
+                    endsAt={renewalDate}
+                    onClose={() => setCanceling(false)}
+                    onCanceled={async message => {
+                        setCanceling(false);
+                        setNotice(message);
+                        await load();
+                    }}
+                />}
             </div>
         </MasterLayout>
     );

@@ -23,9 +23,7 @@ class WarehouseAPIController extends AppBaseController
     {
         $perPage = getPageSize($request);
         $warehousesQuery = $this->warehouseRepository;
-        if ($storeId = $this->currentStoreId()) {
-            $warehousesQuery->where('store_id', $storeId);
-        }
+        $warehousesQuery->where('store_id', $this->requireCurrentStoreId());
         $warehouses = $warehousesQuery->paginate($perPage);
         $data = [];
         foreach ($warehouses as $warehouse) {

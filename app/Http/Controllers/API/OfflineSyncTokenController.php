@@ -16,7 +16,7 @@ class OfflineSyncTokenController extends AppBaseController
         ]);
         $storeId = $this->requireCurrentStoreId();
         $tokenName = $this->tokenName($storeId, $validated['device_id']);
-        $expiresAt = now()->addDays(30);
+        $expiresAt = now()->addHours(max(1, (int) config('saas.offline_lease_hours', 12)));
 
         $request->user()->tokens()->where('name', $tokenName)->delete();
         $token = $request->user()->createToken(

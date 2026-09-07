@@ -30,7 +30,7 @@ class CouponCodeAPIController extends AppBaseController
     public function index(Request $request)
     {
         $perPage = getPageSize($request);
-        $couponCodes = $this->couponCodeRepository;
+        $couponCodes = $this->couponCodeRepository->where('store_id', $this->requireCurrentStoreId());
 
         $couponCodes = $couponCodes->paginate($perPage);
         CouponCodeResource::usingWithCollection();
@@ -46,6 +46,8 @@ class CouponCodeAPIController extends AppBaseController
     public function store(StoreCouponCodeRequest $request)
     {
         $input = $request->all();
+        $this->authorizeProductItems($this->productItemsForAuthorization($input['products'] ?? []));
+        $input['store_id'] = $this->requireCurrentStoreId();
         $couponCode = $this->couponCodeRepository->create($input);
         $couponCode->products()->sync($input['products']);
 
@@ -59,6 +61,7 @@ class CouponCodeAPIController extends AppBaseController
      */
     public function edit(CouponCode $couponCode)
     {
+        $this->authorizeStoreOwnership($couponCode);
         return new CouponCodeResource($couponCode);
     }
 
@@ -69,8 +72,11 @@ class CouponCodeAPIController extends AppBaseController
      */
     public function update(UpdateCouponCodeRequest $request, CouponCode $couponCode)
     {
+        $this->authorizeStoreOwnership($couponCode);
+        $this->authorizeProductItems($this->productItemsForAuthorization($request->input('products', [])));
         $input = Arr::except($request->all(), 'products');
-        $this->couponCodeRepository->where('id', $couponCode->id)->update($input);
+        $this->couponCodeRepository->where('id', $couponCode->id)
+            ->where('store_id', $this->requireCurrentStoreId())->update($input);
         $couponCode->products()->sync($request->products);
 
         return new CouponCodeResource($couponCode);
@@ -83,8 +89,18 @@ class CouponCodeAPIController extends AppBaseController
      */
     public function destroy(CouponCode $couponCode)
     {
+        $this->authorizeStoreOwnership($couponCode);
         $couponCode->delete();
 
         return $this->sendSuccess('Coupon code deleted successfully.');
+    }
+
+    private function productItemsForAuthorization(array $products): array
+    {
+        return collect($products)->map(function ($product) {
+            $id = is_array($product) ? ($product['product_id'] ?? $product['id'] ?? null) : $product;
+
+            return ['product_id' => $id];
+        })->all();
     }
 }

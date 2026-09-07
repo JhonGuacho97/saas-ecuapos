@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\CouponCode;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCouponCodeRequest extends FormRequest
 {
@@ -22,6 +23,12 @@ class StoreCouponCodeRequest extends FormRequest
      */
     public function rules(): array
     {
-        return CouponCode::$rules;
+        $rules = CouponCode::$rules;
+        $rules['code'] = [
+            'required',
+            Rule::unique('coupon_codes', 'code')->where(fn ($query) => $query->where('store_id', currentStoreId())),
+        ];
+
+        return $rules;
     }
 }

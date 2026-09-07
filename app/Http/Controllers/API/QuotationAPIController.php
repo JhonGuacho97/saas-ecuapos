@@ -30,12 +30,14 @@ class QuotationAPIController extends AppBaseController
 
     public function index(Request $request)
     {
+        $storeId = $this->requireCurrentStoreId();
         $perPage = getPageSize($request);
         $search = $request->filter['search'] ?? '';
-        $customer = (Customer::where('name', 'LIKE', "%$search%")->get()->count() != 0);
-        $warehouse = (Warehouse::active()->where('name', 'LIKE', "%$search%")->get()->count() != 0);
+        $customer = Customer::where('store_id', $storeId)->where('name', 'LIKE', "%$search%")->exists();
+        $warehouse = Warehouse::where('store_id', $storeId)->active()->where('name', 'LIKE', "%$search%")->exists();
 
         $quotations = $this->quotationRepository;
+        $this->scopeQueryToCurrentStore($quotations);
         if ($customer || $warehouse) {
             $quotations->whereHas('customer', function (Builder $q) use ($search, $customer) {
                 if ($customer) {
@@ -84,6 +86,9 @@ class QuotationAPIController extends AppBaseController
     public function store(CreateQuotationRequest $request): QuotationResource
     {
         $input = $request->all();
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($input['quotation_items'] ?? []);
         $quotation = $this->quotationRepository->storeQuotation($input);
 
         return new QuotationResource($quotation);
@@ -92,23 +97,26 @@ class QuotationAPIController extends AppBaseController
     public function show($id): QuotationResource
     {
         $quotation = $this->quotationRepository->find($id);
+        $this->authorizeWarehouseAccess($quotation->warehouse_id);
 
         return new QuotationResource($quotation);
     }
 
     public function quotationInfo(Quotation $quotation): JsonResponse
     {
+        $this->authorizeWarehouseAccess($quotation->warehouse_id);
         $quotation = $quotation->load('quotationItems.product.variationType', 'warehouse', 'customer');
         $keyName = [
             'email', 'company_name', 'phone', 'address',
         ];
-        $quotation['company_info'] = Setting::whereIn('key', $keyName)->pluck('value', 'key')->toArray();
+        $quotation['company_info'] = collect($keyName)->mapWithKeys(fn ($key) => [$key => getSettingValue($key)])->all();
 
         return $this->sendResponse($quotation, 'Quotation information retrieved successfully');
     }
 
     public function edit(Quotation $quotation): QuotationResource
     {
+        $this->authorizeWarehouseAccess($quotation->warehouse_id);
         $quotation = $quotation->load('quotationItems.product.stocks', 'warehouse');
 
         return new QuotationResource($quotation);
@@ -116,7 +124,12 @@ class QuotationAPIController extends AppBaseController
 
     public function update(UpdateQuotationRequest $request, $id): QuotationResource
     {
+        $existing = Quotation::findOrFail($id);
+        $this->authorizeWarehouseAccess($existing->warehouse_id);
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Customer::class, $request->input('customer_id'));
         $input = $request->all();
+        $this->authorizeProductItems($input['quotation_items'] ?? []);
         $quotation = $this->quotationRepository->updateQuotation($input, $id);
 
         return new QuotationResource($quotation);
@@ -124,6 +137,7 @@ class QuotationAPIController extends AppBaseController
 
     public function destroy(Quotation $quotation): JsonResponse
     {
+        $this->authorizeWarehouseAccess($quotation->warehouse_id);
         $this->quotationRepository->delete($quotation->id);
 
         return $this->sendSuccess('Quotation Deleted successfully');
@@ -131,18 +145,18 @@ class QuotationAPIController extends AppBaseController
 
     public function pdfDownload(Quotation $quotation): JsonResponse
     {
+        $this->authorizeWarehouseAccess($quotation->warehouse_id);
         $quotation = $quotation->load('customer', 'quotationItems.product');
         $data = [];
-        if (Storage::exists('pdf/Quotation-'.$quotation->reference_code.'.pdf')) {
-            Storage::delete('pdf/Quotation-'.$quotation->reference_code.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/Quotation-'.$quotation->reference_code.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
         $pdf = PDF::loadView('pdf.quotation-pdf', compact('quotation'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/Quotation-'.$quotation->reference_code.'.pdf',
-            $pdf->output());
-        $data['quotation_pdf_url'] = Storage::url('pdf/Quotation-'.$quotation->reference_code.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['quotation_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'Quotation pdf retrieved Successfully');
     }

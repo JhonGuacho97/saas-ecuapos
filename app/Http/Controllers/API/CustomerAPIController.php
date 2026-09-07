@@ -174,8 +174,10 @@ class CustomerAPIController extends AppBaseController
 
     public function bestCustomersPdfDownload(): JsonResponse
     {
+        $storeId = $this->requireCurrentStoreId();
         $month = Carbon::now('America/Guayaquil')->month;
         $topCustomers = Customer::leftJoin('sales', 'customers.id', '=', 'sales.customer_id')
+            ->where('customers.store_id', $storeId)
             ->whereMonth('date', $month)
             ->select('customers.*', DB::raw('sum(sales.grand_total) as grand_total'))
             ->groupBy('customers.id')
@@ -187,22 +189,23 @@ class CustomerAPIController extends AppBaseController
 
         $data = [];
 
-        if (Storage::exists('pdf/best-customers.pdf')) {
-            Storage::delete('pdf/best-customers.pdf');
-        }
+        $path = tenantMediaPath('pdf/best-customers.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.best-customers-pdf', compact('topCustomers'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/best-customers.pdf', $pdf->output());
-        $data['best_customers_pdf_url'] = Storage::url('pdf/best-customers.pdf');
+        $disk->put($path, $pdf->output());
+        $data['best_customers_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
 
     public function pdfDownload(Customer $customer): JsonResponse
     {
+        $this->authorizeStoreOwnership($customer);
         $customer = $customer->load('sales.payments');
 
         $salesData = [];
@@ -221,36 +224,37 @@ class CustomerAPIController extends AppBaseController
 
         $data = [];
 
-        if (Storage::exists('pdf/customers-report-'.$customer->id.'.pdf')) {
-            Storage::delete('pdf/customers-report-'.$customer->id.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/customers-report-'.$customer->id.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.customers-report-pdf', compact('customer', 'salesData'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/customers-report-'.$customer->id.'.pdf', $pdf->output());
-        $data['customers_report_pdf_url'] = Storage::url('pdf/customers-report-'.$customer->id.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['customers_report_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
 
     public function customerSalesPdfDownload(Customer $customer): JsonResponse
     {
+        $this->authorizeStoreOwnership($customer);
         $customer = $customer->load('sales.payments');
 
         $data = [];
 
-        if (Storage::exists('pdf/customer-sales-'.$customer->id.'.pdf')) {
-            Storage::delete('pdf/customer-sales-'.$customer->id.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/customer-sales-'.$customer->id.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.customer-sales-pdf', compact('customer'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/customer-sales-'.$customer->id.'.pdf', $pdf->output());
-        $data['customers_sales_pdf_url'] = Storage::url('pdf/customer-sales-'.$customer->id.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['customers_sales_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
@@ -382,46 +386,49 @@ class CustomerAPIController extends AppBaseController
 
     public function customerQuotationsPdfDownload(Customer $customer): JsonResponse
     {
+        $this->authorizeStoreOwnership($customer);
         $customer = $customer->load('quotations');
 
         $data = [];
 
-        if (Storage::exists('pdf/customer-quotations-'.$customer->id.'.pdf')) {
-            Storage::delete('pdf/customer-quotations-'.$customer->id.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/customer-quotations-'.$customer->id.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.customer-quotations-pdf', compact('customer'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/customer-quotations-'.$customer->id.'.pdf', $pdf->output());
-        $data['customers_quotations_pdf_url'] = Storage::url('pdf/customer-quotations-'.$customer->id.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['customers_quotations_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
 
     public function customerReturnsPdfDownload(Customer $customer): JsonResponse
     {
+        $this->authorizeStoreOwnership($customer);
         $customer = $customer->load('salesReturns');
 
         $data = [];
 
-        if (Storage::exists('pdf/customer-returns-'.$customer->id.'.pdf')) {
-            Storage::delete('pdf/customer-returns-'.$customer->id.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/customer-returns-'.$customer->id.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.customer-returns-pdf', compact('customer'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/customer-returns-'.$customer->id.'.pdf', $pdf->output());
-        $data['customers_returns_pdf_url'] = Storage::url('pdf/customer-returns-'.$customer->id.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['customers_returns_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
 
     public function customerPaymentsPdfDownload($id): JsonResponse
     {
+        $this->authorizeStoreOwnership(Customer::findOrFail($id));
         $saleIds = [];
 
         $sales = Sale::whereCustomerId($id)->get();
@@ -434,16 +441,16 @@ class CustomerAPIController extends AppBaseController
 
         $data = [];
 
-        if (Storage::exists('pdf/customer-payments-'.$id.'.pdf')) {
-            Storage::delete('pdf/customer-payments-'.$id.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/customer-payments-'.$id.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.customer-payments-pdf', compact('payments'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/customer-payments-'.$id.'.pdf', $pdf->output());
-        $data['customers_payments_pdf_url'] = Storage::url('pdf/customer-payments-'.$id.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['customers_payments_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }

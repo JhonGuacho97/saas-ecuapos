@@ -80,7 +80,7 @@ class SettingAPIController extends AppBaseController
 
         $settings['logo'] = getLogoUrl();
         $settings = $this->resolveStoreDefaults($settings);
-        $settings['currency_symbol'] = Currency::whereId($settings['currency'])->first()->symbol ?? '';
+        $settings['currency_symbol'] = $this->currencySymbol($settings);
         $settings['countries'] = Country::all();
 
         return $this->sendResponse(new SettingResource(['type' => 'settings', 'attributes' => $settings]),
@@ -112,7 +112,7 @@ class SettingAPIController extends AppBaseController
         $settings = $this->scopedSettingsQuery()->whereIn('key', $keyName)->get()->pluck('value', 'key')->toArray();
         $settings['logo'] = getLogoUrl();
         $settings = $this->resolveStoreDefaults($settings);
-        $settings['currency_symbol'] = Currency::whereId($settings['currency'])->first()->symbol ?? '';
+        $settings['currency_symbol'] = $this->currencySymbol($settings);
 
         return $this->sendResponse(new SettingResource(['type' => 'settings', 'value' => $settings]),
             'Setting value retrieved successfully.');
@@ -134,6 +134,18 @@ class SettingAPIController extends AppBaseController
         $settings['customer_name'] = $customer?->name ?? '';
 
         return $settings;
+    }
+
+    /**
+     * Una instalación SaaS limpia no tiene todavía configuración tenant. La
+     * pantalla pública y los endpoints base deben poder responder antes de que
+     * se registre la primera organización, sin asumir que ya existe currency.
+     */
+    private function currencySymbol(array $settings): string
+    {
+        $currencyId = $settings['currency'] ?? null;
+
+        return $currencyId ? (Currency::find($currencyId)?->symbol ?? '') : '';
     }
 
     public function getStates($countryId): JsonResponse

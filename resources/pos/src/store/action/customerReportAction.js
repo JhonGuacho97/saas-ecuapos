@@ -4,6 +4,7 @@ import requestParam from "../../shared/requestParam";
 import { addToast } from "./toastAction";
 import { setTotalRecord } from "./totalRecordAction";
 import { setLoading } from "./loadingAction";
+import { downloadAuthenticatedFile } from "../../shared/downloadAuthenticatedFile";
 
 export const fetchCustomersReport =
     (filter = {}, isLoading = true) =>
@@ -98,11 +99,8 @@ export const customerPdfAction =
         }
         apiConfig
             .get(apiBaseURL.CUSTOMER_REPORT_PDF + "/" + customerId)
-            .then((response) => {
-                window.open(
-                    response.data.data.customers_report_pdf_url,
-                    "_blank"
-                );
+            .then(async (response) => {
+                await downloadAuthenticatedFile(response.data.data.customers_report_pdf_url, { open: true, filename: "cliente.pdf" });
                 if (isLoading) {
                     dispatch(setLoading(false));
                 }
@@ -120,8 +118,8 @@ export const customerPdfAction =
 export const customerSaleReportPDF = (id) => async (dispatch) => {
     apiConfig
         .get(apiBaseURL.CUSTOMER_SALES_REPORT_PDF + "/" + id)
-        .then((response) => {
-            window.open(response.data.data.customers_sales_pdf_url, "_blank");
+        .then(async (response) => {
+            await downloadAuthenticatedFile(response.data.data.customers_sales_pdf_url, { open: true, filename: "ventas-cliente.pdf" });
         })
         .catch(({ response }) => {
             dispatch(
@@ -133,8 +131,8 @@ export const customerSaleReportPDF = (id) => async (dispatch) => {
 export const customerSaleReturnReportPDF = (id) => async (dispatch) => {
     apiConfig
         .get(apiBaseURL.CUSTOMER_SALES_RETURNS_REPORT_PDF + "/" + id)
-        .then((response) => {
-            window.open(response.data.data.customers_returns_pdf_url, "_blank");
+        .then(async (response) => {
+            await downloadAuthenticatedFile(response.data.data.customers_returns_pdf_url, { open: true, filename: "devoluciones-cliente.pdf" });
         })
         .catch(({ response }) => {
             dispatch(
@@ -146,11 +144,8 @@ export const customerSaleReturnReportPDF = (id) => async (dispatch) => {
 export const customerQutationReportPDF = (id) => async (dispatch) => {
     apiConfig
         .get(apiBaseURL.CUSTOMER_QUOTATIONS_REPORT_PDF + "/" + id)
-        .then((response) => {
-            window.open(
-                response.data.data.customers_quotations_pdf_url,
-                "_blank"
-            );
+        .then(async (response) => {
+            await downloadAuthenticatedFile(response.data.data.customers_quotations_pdf_url, { open: true, filename: "cotizaciones-cliente.pdf" });
         })
         .catch(({ response }) => {
             dispatch(
@@ -162,11 +157,8 @@ export const customerQutationReportPDF = (id) => async (dispatch) => {
 export const customerSalePaymentReportPDF = (id) => async (dispatch) => {
     apiConfig
         .get(apiBaseURL.CUSTOMER_PAYMENT_REPORT_PDF + "/" + id)
-        .then((response) => {
-            window.open(
-                response.data.data.customers_payments_pdf_url,
-                "_blank"
-            );
+        .then(async (response) => {
+            await downloadAuthenticatedFile(response.data.data.customers_payments_pdf_url, { open: true, filename: "pagos-cliente.pdf" });
         })
         .catch(({ response }) => {
             dispatch(

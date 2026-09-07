@@ -132,6 +132,8 @@ class EntitlementService
             'current_period_ends_at' => $subscription->current_period_ends_at?->toIso8601String(),
             'next_billing_at' => $subscription->next_billing_at?->toIso8601String(),
             'auto_renew' => (bool) $subscription->auto_renew,
+            'cancel_at_period_end' => (bool) $subscription->cancel_at_period_end,
+            'canceled_at' => $subscription->canceled_at?->toIso8601String(),
             'days_remaining' => $subscription->trial_ends_at && ! $expired
                 ? max(1, (int) now()->ceilDay()->diffInDays($subscription->trial_ends_at->ceilDay()))
                 : 0,

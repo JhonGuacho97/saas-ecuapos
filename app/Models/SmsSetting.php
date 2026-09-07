@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * App\Models\SmsSetting
@@ -41,7 +42,26 @@ class SmsSetting extends Model
      * @var string[]
      */
     protected $fillable = [
+        'store_id',
         'key',
         'value',
     ];
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    public static function effectiveValue(?int $storeId, string $key): ?string
+    {
+        return static::where('key', $key)
+            ->where(function ($query) use ($storeId) {
+                $query->whereNull('store_id');
+                if ($storeId) {
+                    $query->orWhere('store_id', $storeId);
+                }
+            })
+            ->orderByDesc('store_id')
+            ->value('value');
+    }
 }

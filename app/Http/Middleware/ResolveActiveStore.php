@@ -74,9 +74,14 @@ class ResolveActiveStore
             $resolvedStoreId = $storeIds->first();
         }
 
-        if ($resolvedStoreId !== null) {
-            $request->attributes->set('current_store_id', $resolvedStoreId);
+        if ($resolvedStoreId === null) {
+            $message = $storeIds->isEmpty()
+                ? 'No tiene una tienda activa disponible.'
+                : 'Debe seleccionar una tienda para continuar.';
+            abort(422, $message);
         }
+
+        $request->attributes->set('current_store_id', $resolvedStoreId);
 
         $memberOrganizationIds = $user->organizations()
             ->wherePivot('status', Organization::STATUS_ACTIVE)

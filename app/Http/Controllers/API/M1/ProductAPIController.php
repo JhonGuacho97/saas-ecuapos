@@ -21,9 +21,7 @@ class ProductAPIController extends AppBaseController
     {
         $products = $this->productRepository;
 
-        if ($storeId = $this->currentStoreId()) {
-            $products->where('store_id', $storeId);
-        }
+        $products->where('store_id', $this->requireCurrentStoreId());
 
         if ($request->get('product_unit')) {
             $products->where('product_unit', $request->get('product_unit'));
@@ -52,6 +50,7 @@ class ProductAPIController extends AppBaseController
     public function show($id): JsonResponse
     {
         $product = $this->productRepository->find($id);
+        $this->authorizeStoreOwnership($product);
         $data = $product->prepareProducts();
 
         return $this->sendResponse($data, 'Product Retrieved Successfully');
@@ -59,7 +58,8 @@ class ProductAPIController extends AppBaseController
 
     public function getProductByCategory($id): JsonResponse
     {
-        $products = $this->productRepository->whereProductCategoryId($id)->get();
+        $products = $this->productRepository->whereProductCategoryId($id)
+            ->where('store_id', $this->requireCurrentStoreId())->get();
         $data = [];
         foreach ($products as $product) {
             $data[] = $product->prepareProducts();
@@ -70,7 +70,8 @@ class ProductAPIController extends AppBaseController
 
     public function getProductByBrand($id): JsonResponse
     {
-        $products = $this->productRepository->whereBrandId($id)->get();
+        $products = $this->productRepository->whereBrandId($id)
+            ->where('store_id', $this->requireCurrentStoreId())->get();
         $data = [];
         foreach ($products as $product) {
             $data[] = $product->prepareProducts();
@@ -84,7 +85,9 @@ class ProductAPIController extends AppBaseController
      */
     public function getProductByBrandAndCategory(Request $request): JsonResponse
     {
-        $products = $this->productRepository->whereBrandId($request->brand_Id)->whereProductCategoryId($request->category_id)->get();
+        $products = $this->productRepository->whereBrandId($request->brand_Id)
+            ->whereProductCategoryId($request->category_id)
+            ->where('store_id', $this->requireCurrentStoreId())->get();
         $data = [];
         foreach ($products as $product) {
             $data[] = $product->prepareProducts();

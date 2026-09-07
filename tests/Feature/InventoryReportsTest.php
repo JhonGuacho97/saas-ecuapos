@@ -64,7 +64,7 @@ class InventoryReportsTest extends TestCase
 
         $this->withHeader('X-Store-Id', $store->id)
             ->getJson('/api/stock-report?warehouse_id='.$foreignWarehouse->id)
-            ->assertUnprocessable()
+            ->assertForbidden()
             ->assertJsonPath('message', 'La bodega no pertenece a la tienda activa o se encuentra desactivada.');
     }
 

@@ -175,6 +175,12 @@ class ProductAPIController extends AppBaseController
     public function productImageDelete($mediaId): JsonResponse
     {
         $media = Media::where('id', $mediaId)->firstOrFail();
+        $owner = $media->model;
+        if ($owner instanceof Product || $owner instanceof MainProduct) {
+            $this->authorizeStoreOwnership($owner);
+        } else {
+            abort(403, 'No tiene permiso para eliminar este archivo.');
+        }
         $media->delete();
 
         return $this->sendSuccess('Product image deleted successfully');
@@ -189,19 +195,22 @@ class ProductAPIController extends AppBaseController
 
     public function getProductExportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/product-excel-export.xlsx')) {
-            Storage::delete('excel/product-excel-export.xlsx');
+        $filename = 'product-excel-export-'.auth()->id().'.xlsx';
+        $path = tenantMediaPath('excel/'.$filename);
+        $disk = Storage::disk('tenant_private');
+        if ($disk->exists($path)) {
+            $disk->delete($path);
         }
-        Excel::store(new ProductExcelExport, 'excel/product-excel-export.xlsx');
+        Excel::store(new ProductExcelExport($this->requireCurrentStoreId()), $path, 'tenant_private');
 
-        $data['product_excel_url'] = Storage::url('excel/product-excel-export.xlsx');
+        $data['product_excel_url'] = url('/api/tenant-files/excel/'.$filename);
 
         return $this->sendResponse($data, 'Product retrieved successfully');
     }
 
     public function getAllProducts()
     {
-        $products = Product::all();
+        $products = Product::where('store_id', $this->requireCurrentStoreId())->get();
         $data = [];
 
         foreach ($products as $product) {

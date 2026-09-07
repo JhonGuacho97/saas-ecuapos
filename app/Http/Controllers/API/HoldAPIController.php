@@ -25,7 +25,9 @@ class HoldAPIController extends AppBaseController
 
     public function index(): HoldCollection
     {
-        $holds = $this->holdRepository->get();
+        $query = $this->holdRepository;
+        $this->scopeQueryToCurrentStore($query);
+        $holds = $query->get();
 
         HoldResource::usingWithCollection();
 
@@ -45,6 +47,9 @@ class HoldAPIController extends AppBaseController
     public function store(CreateHoldRequest $request): HoldResource
     {
         $input = $request->all();
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(\App\Models\Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($input['hold_items'] ?? []);
         $hold = $this->holdRepository->storeHold($input);
 
         return new HoldResource($hold);
@@ -53,6 +58,7 @@ class HoldAPIController extends AppBaseController
     public function show($id): HoldResource
     {
         $sale = $this->holdRepository->find($id);
+        $this->authorizeWarehouseAccess($sale->warehouse_id);
 
         return new HoldResource($sale);
     }
@@ -60,6 +66,7 @@ class HoldAPIController extends AppBaseController
     public function edit($id): HoldResource
     {
         $hold = Hold::findOrFail($id);
+        $this->authorizeWarehouseAccess($hold->warehouse_id);
         $hold = $hold->load('holdItems.product.stocks', 'warehouse');
 
         return new HoldResource($hold);
@@ -67,7 +74,12 @@ class HoldAPIController extends AppBaseController
 
     public function update(UpdateHoldRequest $request, $id): HoldResource
     {
-        $reference = Hold::whereId($id)->first()->value('reference_code');
+        $existing = Hold::findOrFail($id);
+        $this->authorizeWarehouseAccess($existing->warehouse_id);
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(\App\Models\Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($request->input('hold_items', []));
+        $reference = $existing->reference_code;
 
         if ($reference == $request->reference_code) {
             $input = $request->all();
@@ -88,6 +100,7 @@ class HoldAPIController extends AppBaseController
             DB::beginTransaction();
 
             $hold = Hold::findOrFail($id);
+            $this->authorizeWarehouseAccess($hold->warehouse_id);
             $hold->delete();
 
             DB::commit();

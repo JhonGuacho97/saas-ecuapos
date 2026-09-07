@@ -90,6 +90,51 @@ $sm-line: #e2e9f3;
     > div > span { display: block; color: #8a7550; font-size: 11px; line-height: 1.6; margin-top: 3px; }
 }
 
+.sm-cancellation-scheduled,
+.sm-subscription-actions {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 15px;
+    background: #f5f8ff;
+    border: 1px solid #dce7fb;
+
+    > div { flex: 1; }
+    strong { display: block; font-size: 13px; }
+    span { display: block; color: $sm-muted; font-size: 11px; line-height: 1.55; margin-top: 3px; }
+}
+
+.sm-cancellation-scheduled {
+    background: #fff8ec;
+    border-color: #ffe2b8;
+    .sm-status-icon { background: #ffeed3; color: #b57408; }
+}
+
+.sub-success { padding: 12px 14px; border: 1px solid #bdebd4; border-radius: 12px; background: #f0fbf6; color: #15784b; font-size: 12px; font-weight: 600; }
+.sub-btn--danger { background: #c9364b; color: #fff; border-color: #c9364b; }
+.sub-btn--danger-outline { background: #fff; color: #bd3448; border: 1px solid #efb4bd; }
+
+.sm-modal-backdrop { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 20px; background: rgba(12, 25, 47, .58); backdrop-filter: blur(3px); }
+.sm-cancel-modal { width: min(560px, 100%); max-height: calc(100vh - 40px); overflow: auto; border-radius: 20px; background: #fff; box-shadow: 0 28px 80px rgba(9, 22, 46, .3);
+    > header { display: flex; align-items: center; gap: 13px; padding: 20px 22px; border-bottom: 1px solid $sm-line;
+        h2 { margin: 3px 0 0; }
+        > button { margin-left: auto; width: 34px; height: 34px; border: 0; border-radius: 10px; background: #f1f4f8; color: #6f7b8f; }
+    }
+    &__icon { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border-radius: 13px; background: #ffeaed; color: #c9364b; }
+    &__body { padding: 20px 22px; display: grid; gap: 16px;
+        > p { margin: 0; color: $sm-muted; font-size: 12px; line-height: 1.65; }
+        label { display: grid; gap: 7px; color: #526078; font-size: 11px; font-weight: 700; }
+        label small { color: $sm-muted; font-weight: 500; }
+        select, textarea { width: 100%; border: 1px solid #dce4ef; border-radius: 11px; background: #fbfcfe; padding: 10px 12px; outline: 0; color: $sm-ink; font: inherit; font-weight: 500; }
+        select { min-height: 44px; }
+        textarea { min-height: 100px; resize: vertical; }
+        select:focus, textarea:focus { border-color: #88adff; box-shadow: 0 0 0 3px #edf3ff; background: #fff; }
+    }
+    > footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 9px; padding: 15px 22px; border-top: 1px solid $sm-line; background: #fff; }
+}
+
 .sm-usage-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -136,4 +181,5 @@ $sm-line: #e2e9f3;
 @media (max-width: 900px) {
     .sm-status { grid-template-columns: 1fr; }
     .sm-head { flex-direction: column; }
+    .sm-subscription-actions { align-items: flex-start; flex-direction: column; }
 }

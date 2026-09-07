@@ -3,6 +3,7 @@ import {
     faCalendarCheck,
     faChartLine,
     faCreditCard,
+    faGear,
     faGlobe,
     faLayerGroup,
     faUsers,
@@ -18,6 +19,7 @@ export const superAdminNavigation = [
     { key: 'subscriptions', label: 'Suscripciones', icon: faCalendarCheck },
     { key: 'payments', label: 'Pagos', icon: faCreditCard },
     { key: 'landing', label: 'Landing page', icon: faGlobe },
+    { key: 'settings', label: 'Configuración', icon: faGear },
 ];
 
 export const getSuperAdminPageTitle = pathname =>

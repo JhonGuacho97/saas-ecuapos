@@ -41,9 +41,9 @@ class MailRepository extends BaseRepository
         return MailTemplate::class;
     }
 
-    public function updateMailTemplate($input, $id)
+    public function updateMailTemplate($input, $id, int $storeId)
     {
-        $mailTemplate = MailTemplate::whereId($id)->firstOrFail();
+        $mailTemplate = MailTemplate::where('store_id', $storeId)->whereId($id)->firstOrFail();
         $mailTemplate->update([
             'content' => $input['content'],
         ]);

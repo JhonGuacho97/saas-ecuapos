@@ -77,98 +77,42 @@ class ReportAPIController extends AppBaseController
 
     public function getWarehouseSaleReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/sale-report-pdf.xlsx')) {
-            Storage::delete('excel/sale-report-pdf.xlsx');
-        }
-        Excel::store(new SalesWarehouseReportExport, 'excel/sale-report-excel.xlsx');
-
-        $data['sale_excel_url'] = Storage::url('excel/sale-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Sale Report retrieved successfully');
+        return $this->storeExcelReport(new SalesWarehouseReportExport, 'sale-report-excel.xlsx', 'sale_excel_url', 'Sale Report retrieved successfully');
     }
 
     public function getWarehousePurchaseReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/purchase-report-pdf.xlsx')) {
-            Storage::delete('excel/purchase-report-pdf.xlsx');
-        }
-        Excel::store(new PurchasesWarehouseReportExport, 'excel/purchase-report-excel.xlsx');
-
-        $data['purchase_excel_url'] = Storage::url('excel/purchase-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'purchase Report retrieved successfully');
+        return $this->storeExcelReport(new PurchasesWarehouseReportExport, 'purchase-report-excel.xlsx', 'purchase_excel_url', 'purchase Report retrieved successfully');
     }
 
     public function getWarehouseSaleReturnReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/sale-return-report-excel.xlsx')) {
-            Storage::delete('excel/sale-return-report-excel.xlsx');
-        }
-        Excel::store(new SaleReturnWarehouseReportExport, 'excel/sale-return-report-excel.xlsx');
-
-        $data['sale_return_excel_url'] = Storage::url('excel/sale-return-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'sale return Report retrieved successfully');
+        return $this->storeExcelReport(new SaleReturnWarehouseReportExport, 'sale-return-report-excel.xlsx', 'sale_return_excel_url', 'sale return Report retrieved successfully');
     }
 
     public function getWarehousePurchaseReturnReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/purchase-return-report-excel.xlsx')) {
-            Storage::delete('excel/purchase-return-report-excel.xlsx');
-        }
-        Excel::store(new PurchaseReturnWarehouseReportExport, 'excel/purchase-return-report-excel.xlsx');
-
-        $data['purchase_return_excel_url'] = Storage::url('excel/purchase-return-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'purchase return Report retrieved successfully');
+        return $this->storeExcelReport(new PurchaseReturnWarehouseReportExport, 'purchase-return-report-excel.xlsx', 'purchase_return_excel_url', 'purchase return Report retrieved successfully');
     }
 
     public function getWarehouseExpenseReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/expense-report-excel.xlsx')) {
-            Storage::delete('excel/expense-report-excel.xlsx');
-        }
-        Excel::store(new ExpenseWarehouseReportExport, 'excel/expense-report-excel.xlsx');
-
-        $data['expense_excel_url'] = Storage::url('excel/expense-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'expenses Report retrieved successfully');
+        return $this->storeExcelReport(new ExpenseWarehouseReportExport, 'expense-report-excel.xlsx', 'expense_excel_url', 'expenses Report retrieved successfully');
     }
 
     public function getSalesReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/total-sales-report-excel.xlsx')) {
-            Storage::delete('excel/total-sales-report-excel.xlsx');
-        }
-        Excel::store(new SaleReportExport, 'excel/total-sales-report-excel.xlsx');
-
-        $data['total_sale_excel_url'] = Storage::url('excel/total-sales-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Sale Report retrieved successfully');
+        return $this->storeExcelReport(new SaleReportExport, 'total-sales-report-excel.xlsx', 'total_sale_excel_url', 'Sale Report retrieved successfully');
     }
 
     public function getPurchaseReportExcel(Request $request): JsonResponse
     {
-        if (Storage::exists('excel/purchases-report-excel.xlsx')) {
-            Storage::delete('excel/purchases-report-excel.xlsx');
-        }
-        Excel::store(new PurchaseReportExport, 'excel/purchases-report-excel.xlsx');
-
-        $data['total_purchase_excel_url'] = Storage::url('excel/purchases-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Purchase Report retrieved successfully');
+        return $this->storeExcelReport(new PurchaseReportExport, 'purchases-report-excel.xlsx', 'total_purchase_excel_url', 'Purchase Report retrieved successfully');
     }
 
     public function getSellingProductReportExcel(): JsonResponse
     {
-        if (Storage::exists('excel/top-selling-product-report-excel.xlsx')) {
-            Storage::delete('excel/top-selling-product-report-excel.xlsx');
-        }
-        Excel::store(new TopSellingProductReportExport, 'excel/top-selling-product-report-excel.xlsx');
-
-        $data['top_selling_product_excel_url'] = Storage::url('excel/top-selling-product-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Top selling product Report retrieved successfully');
+        return $this->storeExcelReport(new TopSellingProductReportExport, 'top-selling-product-report-excel.xlsx', 'top_selling_product_excel_url', 'Top selling product Report retrieved successfully');
     }
 
     /**
@@ -238,67 +182,32 @@ class ReportAPIController extends AppBaseController
 
         // Un nombre por tienda/usuario evita que dos clientes descarguen el
         // archivo temporal generado por otra sesión en hosting compartido.
-        $fileName = sprintf(
-            'excel/stock-report-%s-%s.xlsx',
-            $this->currentStoreId() ?? 'store',
-            Auth::id() ?? 'user'
+        return $this->storeExcelReport(
+            new StockReportExport($validated),
+            'stock-report-'.Auth::id().'.xlsx',
+            'stock_report_excel_url',
+            'Stock Report retrieved successfully'
         );
-        if (Storage::exists($fileName)) {
-            Storage::delete($fileName);
-        }
-        Excel::store(new StockReportExport($validated), $fileName);
-
-        $data['stock_report_excel_url'] = Storage::url($fileName);
-
-        return $this->sendResponse($data, 'Stock Report retrieved successfully');
     }
 
     public function getProductSaleReportExport(): JsonResponse
     {
-        if (Storage::exists('excel/product-sales-report-excel.xlsx')) {
-            Storage::delete('excel/product-sales-report-excel.xlsx');
-        }
-        Excel::store(new ProductSaleReportExport, 'excel/product-sales-report-excel.xlsx');
-
-        $data['product_sale_report_excel_url'] = Storage::url('excel/product-sales-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Product sales Report retrieved successfully');
+        return $this->storeExcelReport(new ProductSaleReportExport, 'product-sales-report-excel.xlsx', 'product_sale_report_excel_url', 'Product sales Report retrieved successfully');
     }
 
     public function getPurchaseProductReportExport(): JsonResponse
     {
-        if (Storage::exists('excel/product-purchases-report-excel.xlsx')) {
-            Storage::delete('excel/product-purchases-report-excel.xlsx');
-        }
-        Excel::store(new ProductPurchaseReportExport, 'excel/product-purchases-report-excel.xlsx');
-
-        $data['product_purchase_report_url'] = Storage::url('excel/product-purchases-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Product purchases retrieved successfully');
+        return $this->storeExcelReport(new ProductPurchaseReportExport, 'product-purchases-report-excel.xlsx', 'product_purchase_report_url', 'Product purchases retrieved successfully');
     }
 
     public function getSaleReturnProductReportExport(): JsonResponse
     {
-        if (Storage::exists('excel/product-sale-return-report-excel.xlsx')) {
-            Storage::delete('excel/product-sale-return-report-excel.xlsx');
-        }
-        Excel::store(new ProductSaleReturnReportExport, 'excel/product-sale-return-report-excel.xlsx');
-
-        $data['product_sale_return_report_url'] = Storage::url('excel/product-sale-return-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Product sale returns retrieved successfully');
+        return $this->storeExcelReport(new ProductSaleReturnReportExport, 'product-sale-return-report-excel.xlsx', 'product_sale_return_report_url', 'Product sale returns retrieved successfully');
     }
 
     public function getPurchaseReturnProductReportExport(): JsonResponse
     {
-        if (Storage::exists('excel/product-purchase-return-report-excel.xlsx')) {
-            Storage::delete('excel/product-purchase-return-report-excel.xlsx');
-        }
-        Excel::store(new ProductPurchaseReturnReportExport, 'excel/product-purchase-return-report-excel.xlsx');
-
-        $data['product_purchase_return_report_url'] = Storage::url('excel/product-purchase-return-report-excel.xlsx');
-
-        return $this->sendResponse($data, 'Product sale returns retrieved successfully');
+        return $this->storeExcelReport(new ProductPurchaseReturnReportExport, 'product-purchase-return-report-excel.xlsx', 'product_purchase_return_report_url', 'Product sale returns retrieved successfully');
     }
 
     public function getProductQuantity(Request $request): JsonResponse
@@ -776,5 +685,20 @@ class ReportAPIController extends AppBaseController
         $salesData['totalSalesDue'] = $salesData['totalAmount'] - $salesData['totalPaid'];
 
         return $this->sendResponse($salesData, 'Customer info retrieved successfully');
+    }
+
+    private function storeExcelReport(object $export, string $filename, string $responseKey, string $message): JsonResponse
+    {
+        $path = tenantMediaPath('excel/'.$filename);
+        $disk = Storage::disk('tenant_private');
+        if ($disk->exists($path)) {
+            $disk->delete($path);
+        }
+
+        Excel::store($export, $path, 'tenant_private');
+
+        return $this->sendResponse([
+            $responseKey => url('/api/tenant-files/excel/'.$filename),
+        ], $message);
     }
 }

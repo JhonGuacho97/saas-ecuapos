@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Tokens } from '../../constants';
 import SuperAdminLayout from './layout/SuperAdminLayout';
 import LandingPageManager from './landing/LandingPageManager';
+import PlatformSettings from './settings/PlatformSettings';
 import {
     Dashboard,
     Organizations,
@@ -28,6 +29,7 @@ export default function SuperAdminApp() {
             <Route path="subscriptions" element={<Subscriptions setNotice={setNotice} />} />
             <Route path="payments" element={<Payments setNotice={setNotice} />} />
             <Route path="landing" element={<LandingPageManager setNotice={setNotice} />} />
+            <Route path="settings" element={<PlatformSettings setNotice={setNotice} />} />
             <Route path="*" element={<Navigate replace to="dashboard" />} />
         </Routes>
     </SuperAdminLayout>;

@@ -185,9 +185,9 @@ class BillingService
         }, 3);
     }
 
-    public function cancel(OrganizationSubscription $subscription, bool $atPeriodEnd): OrganizationSubscription
+    public function cancel(OrganizationSubscription $subscription, bool $atPeriodEnd, array $context = []): OrganizationSubscription
     {
-        return DB::transaction(function () use ($subscription, $atPeriodEnd) {
+        return DB::transaction(function () use ($subscription, $atPeriodEnd, $context) {
             $subscription = OrganizationSubscription::lockForUpdate()->findOrFail($subscription->id);
             $subscription->update($atPeriodEnd ? [
                 'cancel_at_period_end' => true,
@@ -199,7 +199,8 @@ class BillingService
                 'canceled_at' => now(),
             ]);
             $this->event($subscription, $atPeriodEnd ? 'CANCEL_SCHEDULED' : 'CANCELED',
-                $atPeriodEnd ? 'Cancelación programada al final del período' : 'Suscripción cancelada');
+                $atPeriodEnd ? 'Cancelación programada al final del período' : 'Suscripción cancelada',
+                $context);
 
             return $subscription->fresh(['organization', 'plan']);
         }, 3);

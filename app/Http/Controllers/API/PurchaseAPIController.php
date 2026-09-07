@@ -81,6 +81,8 @@ class PurchaseAPIController extends AppBaseController
     public function store(CreatePurchaseRequest $request): PurchaseResource
     {
         $this->authorizeWarehouseAccess($request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Supplier::class, $request->input('supplier_id'));
+        $this->authorizeProductItems($request->input('purchase_items', []));
         $input = $request->all();
         $purchase = $this->purchaseRepository->storePurchase($input);
 
@@ -110,6 +112,9 @@ class PurchaseAPIController extends AppBaseController
     public function update(UpdatePurchaseRequest $request, $id): PurchaseResource
     {
         $this->authorizeWarehouseAccess(Purchase::findOrFail($id)->warehouse_id);
+        $this->authorizeWarehouseAccess($request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Supplier::class, $request->input('supplier_id'));
+        $this->authorizeProductItems($request->input('purchase_items', []));
         $input = $request->all();
         $purchase = $this->purchaseRepository->updatePurchase($input, $id);
 
@@ -162,16 +167,16 @@ class PurchaseAPIController extends AppBaseController
         );
 
         $data = [];
-        if (Storage::exists('pdf.purchase-pdf-'.$purchase->reference_code.'.pdf')) {
-            Storage::delete('pdf.purchase-pdf-'.$purchase->reference_code.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/Purchase-'.$purchase->reference_code.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.purchase-pdf', compact('purchase'))->setOption([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
-        Storage::disk(config('app.media_disc'))->put('pdf/Purchase-'.$purchase->reference_code.'.pdf', $pdf->output());
-        $data['purchase_pdf_url'] = Storage::url('pdf/Purchase-'.$purchase->reference_code.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['purchase_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
@@ -188,7 +193,7 @@ class PurchaseAPIController extends AppBaseController
         $keyName = [
             'email', 'company_name', 'phone', 'address',
         ];
-        $purchase['company_info'] = Setting::whereIn('key', $keyName)->pluck('value', 'key')->toArray();
+        $purchase['company_info'] = collect($keyName)->mapWithKeys(fn ($key) => [$key => getSettingValue($key)])->all();
 
         return $this->sendResponse($purchase, 'Purchase information retrieved successfully');
     }

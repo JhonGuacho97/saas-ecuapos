@@ -12,6 +12,7 @@ import { fetchSupplierPurchaseReturnReport } from "../../../../store/action/supp
 import apiConfig from "../../../../config/apiConfig";
 import { apiBaseURL, toastType } from "../../../../constants";
 import { addToast } from "../../../../store/action/toastAction";
+import { downloadAuthenticatedFile } from "../../../../shared/downloadAuthenticatedFile";
 
 const PurchaseReturnTab = (props) => {
     const {
@@ -140,11 +141,8 @@ const PurchaseReturnTab = (props) => {
             .get(
                 apiBaseURL.SUPPLIER_PURCHASE_RETURN_EXCEL + "?supplier_id=" + id
             )
-            .then((response) => {
-                window.open(
-                    response.data.data.purchase_return_excel_url,
-                    "_blank"
-                );
+            .then(async (response) => {
+                await downloadAuthenticatedFile(response.data.data.purchase_return_excel_url, { filename: "devoluciones-proveedor.xlsx" });
             })
             .catch(({ response }) => {
                 dispatch(

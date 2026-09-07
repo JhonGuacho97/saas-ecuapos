@@ -57,6 +57,16 @@ return [
             'throw' => true,
         ],
 
+        // Reportes y comprobantes operativos de cada organización. Aunque
+        // sus rutas internas se separan por tenant, nunca se publican bajo
+        // /uploads: solo se entregan mediante una ruta autenticada.
+        'tenant_private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/tenant-private'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         'local_protected' => [
             'driver' => 'local',
             'root' => public_path('uploads'),
