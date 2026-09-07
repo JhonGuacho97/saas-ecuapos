@@ -43,6 +43,8 @@ class KardexAPIController extends AppBaseController
         if (! $product) {
             return $this->sendError('Producto no encontrado.');
         }
+        $this->authorizeStoreOwnership($product);
+        $this->authorizeWarehouseAccess((int) $warehouseId);
 
         // Todos los movimientos ANTES de la fecha de inicio, para calcular
         // cuánta cantidad y a qué costo promedio se llegó al arrancar el

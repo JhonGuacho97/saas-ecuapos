@@ -52,6 +52,7 @@ class UserRepository extends BaseRepository
     {
         try {
             DB::beginTransaction();
+            unset($input['is_super_admin']);
             $input['password'] = Hash::make($input['password']);
             // Un select vacío llega como '' desde el formulario -- en la
             // columna (entero, nullable) eso debe guardarse como NULL, no
@@ -105,8 +106,20 @@ class UserRepository extends BaseRepository
      */
     private function resolveGrantableStoreIds(array $requestedStoreIds): array
     {
-        $grantable = Auth::user()->stores()->pluck('stores.id')->all();
+        $grantableQuery = Auth::user()->stores()->where('stores.is_active', true);
+        if ($organizationId = currentOrganizationId()) {
+            $grantableQuery->where('stores.organization_id', $organizationId);
+        } else {
+            // Compatibilidad con instalaciones heredadas sin organización:
+            // nunca ampliar el alcance más allá de la tienda activa.
+            $grantableQuery->whereKey(requireCurrentStoreId());
+        }
+        $grantable = $grantableQuery->pluck('stores.id')->all();
         $storeIds = array_values(array_intersect(array_map('intval', $requestedStoreIds), $grantable));
+
+        if (count(array_unique(array_map('intval', $requestedStoreIds))) !== count($storeIds)) {
+            throw new UnprocessableEntityHttpException('No puede asignar usuarios a tiendas de otra organización.');
+        }
 
         return $storeIds ?: [requireCurrentStoreId()];
     }
@@ -165,6 +178,7 @@ class UserRepository extends BaseRepository
     {
         try {
             DB::beginTransaction();
+            unset($input['is_super_admin']);
             if (isset($input['default_warehouse_id']) && $input['default_warehouse_id'] === '') {
                 $input['default_warehouse_id'] = null;
             }
@@ -229,6 +243,7 @@ class UserRepository extends BaseRepository
         try {
             DB::beginTransaction();
             unset($input['role_id']);
+            unset($input['is_super_admin']);
 
             $user = Auth::user();
             $user->update($input);
@@ -254,23 +269,31 @@ class UserRepository extends BaseRepository
     public function getUsers($perPage)
     {
         $loginUserId = Auth::id();
-        $storeId = currentStoreId();
+        $storeId = requireCurrentStoreId();
+        $organizationId = requireCurrentOrganizationId();
 
-        if (Auth::user()->isUnrestrictedAdmin()) {
-            $users = $this;
-        } else {
+        // El módulo tenant nunca debe listar superadministradores de la
+        // plataforma. Además exigimos simultáneamente membresía activa en
+        // la organización y acceso a la tienda actual; una asociación
+        // heredada o accidental en user_store ya no basta para mezclar
+        // cuentas de otra organización.
+        $users = $this->where('is_super_admin', false)
+            ->whereHas('organizations', function ($query) use ($organizationId) {
+                $query->where('organizations.id', $organizationId)
+                    ->where('organization_user.status', Organization::STATUS_ACTIVE);
+            })
+            ->whereHas('stores', function ($query) use ($storeId) {
+                $query->where('stores.id', $storeId);
+            });
+
+        if (! Auth::user()->isUnrestrictedAdmin()) {
             // No solo el rol llamado 'admin': cualquier rol que hoy tenga
             // TODOS los permisos del sistema (ver Role::unrestrictedRoleIds())
             // queda oculto de la lista igual que 'admin' siempre lo estuvo.
             $unrestrictedRoleIds = Role::unrestrictedRoleIds();
-            $users = $this->whereHas('roles', function ($q) use ($unrestrictedRoleIds) {
-                $q->whereNotIn('id', $unrestrictedRoleIds);
-            });
-        }
-
-        if ($storeId) {
-            $users = $users->whereHas('stores', function ($q) use ($storeId) {
-                $q->where('stores.id', $storeId);
+            $users = $users->whereHas('roles', function ($q) use ($unrestrictedRoleIds, $storeId) {
+                $q->where('roles.store_id', $storeId)
+                    ->whereNotIn('roles.id', $unrestrictedRoleIds);
             });
         }
 

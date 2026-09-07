@@ -21,7 +21,7 @@ class HoldAPIController extends AppBaseController
 
     public function index()
     {
-        $holds = Hold::all();
+        $holds = $this->scopeQueryToCurrentStore(Hold::query())->get();
         $data = [];
         foreach ($holds as $hold) {
             $data[] = $hold->prepareHolds();
@@ -33,6 +33,9 @@ class HoldAPIController extends AppBaseController
     public function store(CreateHoldRequest $request): JsonResponse
     {
         $input = $request->all();
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(\App\Models\Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($input['hold_items'] ?? []);
         $this->holdRepository->storeHold($input);
 
         return $this->sendSuccess('Hold created successfully.');
@@ -41,12 +44,15 @@ class HoldAPIController extends AppBaseController
     public function show($id): JsonResponse
     {
         $sale = $this->holdRepository->find($id);
+        $this->authorizeWarehouseAccess($sale->warehouse_id);
 
         return $this->sendResponse($sale, 'Sale retrieved successfully.');
     }
 
     public function edit($id): JsonResponse
     {
+        $holdModel = Hold::findOrFail($id);
+        $this->authorizeWarehouseAccess($holdModel->warehouse_id);
         $getHold = Hold::with('holdItems.product.stocks', 'warehouse')->where('id', $id)->get();
         $data = [];
         foreach ($getHold as $hold) {
@@ -72,6 +78,7 @@ class HoldAPIController extends AppBaseController
             DB::beginTransaction();
 
             $hold = Hold::findOrFail($id);
+            $this->authorizeWarehouseAccess($hold->warehouse_id);
             $hold->delete();
 
             DB::commit();

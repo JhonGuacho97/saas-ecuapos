@@ -23,8 +23,10 @@ class SmsTemplateAPIController extends AppBaseController
     public function index(Request $request): SmsTemplateCollection
     {
         $perPage = getPageSize($request);
+        $storeId = $this->requireCurrentStoreId();
+        $this->ensureStoreTemplates($storeId);
 
-        $smsTemplates = $this->smsTemplateRepository;
+        $smsTemplates = $this->smsTemplateRepository->where('store_id', $storeId);
 
         $smsTemplates = $smsTemplates->paginate($perPage);
 
@@ -65,6 +67,7 @@ class SmsTemplateAPIController extends AppBaseController
 
     public function edit(SmsTemplate $smsTemplate): SmsTemplateResource
     {
+        $this->authorizeStoreOwnership($smsTemplate);
         return new SmsTemplateResource($smsTemplate);
     }
 
@@ -72,14 +75,14 @@ class SmsTemplateAPIController extends AppBaseController
     {
         $input = $request->all();
 
-        $smsTemplate = $this->smsTemplateRepository->updateSmsTemplate($input, $id);
+        $smsTemplate = $this->smsTemplateRepository->updateSmsTemplate($input, $id, $this->requireCurrentStoreId());
 
         return new SmsTemplateResource($smsTemplate);
     }
 
     public function changeActiveStatus($id): SmsTemplateResource
     {
-        $smsTemplate = SmsTemplate::findOrFail($id);
+        $smsTemplate = SmsTemplate::where('store_id', $this->requireCurrentStoreId())->findOrFail($id);
         $status = ! $smsTemplate->status;
         $smsTemplate->update(['status' => $status]);
 
@@ -94,5 +97,19 @@ class SmsTemplateAPIController extends AppBaseController
     public function destroy(int $id)
     {
         //
+    }
+
+    private function ensureStoreTemplates(int $storeId): void
+    {
+        SmsTemplate::whereNull('store_id')->get()->each(function (SmsTemplate $template) use ($storeId) {
+            SmsTemplate::firstOrCreate(
+                ['store_id' => $storeId, 'type' => $template->type],
+                [
+                    'template_name' => $template->template_name,
+                    'content' => $template->content,
+                    'status' => $template->status,
+                ]
+            );
+        });
     }
 }

@@ -125,11 +125,13 @@ class OfflineSaleSyncController extends AppBaseController
             ->whereHas('warehouse', fn ($query) => $query->where('store_id', $storeId))
             ->first();
 
+        $resolvedSale = $sale ? (new SaleResource($sale))->resolve($request) : null;
+
         return response()->json([
             'success' => true,
             'data' => [
                 'exists' => (bool) $sale,
-                'sale' => $sale ? (new SaleResource($sale))->resolve($request)['data'] : null,
+                'sale' => $resolvedSale ? ($resolvedSale['data'] ?? $resolvedSale) : null,
             ],
         ]);
     }
@@ -141,6 +143,10 @@ class OfflineSaleSyncController extends AppBaseController
 
         if (! $token || ! str_starts_with($token->name, 'offline-sync:')) {
             throw new AccessDeniedHttpException('Esta ruta requiere una credencial de sincronización del dispositivo.');
+        }
+        if ($token->created_at?->copy()->addHours(max(1, (int) config('saas.offline_lease_hours', 12)))->isPast()) {
+            $token->delete();
+            throw new AccessDeniedHttpException('La credencial offline venció. Conéctate nuevamente para renovarla.');
         }
         if (! $request->user()->tokenCan("store:{$storeId}")) {
             throw new AccessDeniedHttpException('La credencial no pertenece a la tienda activa.');

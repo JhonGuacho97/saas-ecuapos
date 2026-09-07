@@ -42,7 +42,7 @@ class SendRideEmailJob implements ShouldQueue
             return;
         }
 
-        $template = MailTemplate::where('type', MailTemplate::MAIL_TYPE_ELECTRONIC_INVOICE)->first();
+        $template = MailTemplate::effectiveForStore($factura->store_id, MailTemplate::MAIL_TYPE_ELECTRONIC_INVOICE);
 
         if (empty($template) || $template->status != MailTemplate::ACTIVE) {
             Log::info("SendRideEmailJob: no hay una plantilla de Documentos Electrónicos activa, no se envía.");

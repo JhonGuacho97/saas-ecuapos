@@ -4,6 +4,7 @@ import apiConfig from "../../config/apiConfig";
 import { setTotalRecord } from "./totalRecordAction";
 import requestParam from "../../shared/requestParam";
 import { addToast } from "./toastAction";
+import { downloadAuthenticatedFile } from "../../shared/downloadAuthenticatedFile";
 
 export const bestCustomerReportAction =
     (filter = {}, isLoading = true) =>
@@ -59,11 +60,8 @@ export const bestCustomerPdfAction =
         }
         apiConfig
             .get(apiBaseURL.BEST_CUSTOMERS_REPORT_PDF)
-            .then((response) => {
-                window.open(
-                    response.data.data.best_customers_pdf_url,
-                    "_blank"
-                );
+            .then(async (response) => {
+                await downloadAuthenticatedFile(response.data.data.best_customers_pdf_url, { open: true, filename: "mejores-clientes.pdf" });
                 if (isLoading) {
                     dispatch(setLoading(false));
                 }

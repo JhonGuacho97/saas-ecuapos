@@ -52,6 +52,7 @@ use App\Http\Controllers\API\PublicCatalogController;
 use App\Http\Controllers\API\ElectronicInvoiceController;
 use App\Http\Controllers\API\SupplierAPIController;
 use App\Http\Controllers\API\TransferAPIController;
+use App\Http\Controllers\API\TenantFileDownloadController;
 use App\Http\Controllers\API\UnitAPIController;
 use App\Http\Controllers\API\UserAPIController;
 use App\Http\Controllers\API\WarehouseAPIController;
@@ -84,6 +85,26 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class);
 
 Route::middleware(['auth:sanctum', 'super.admin'])->prefix('super-admin')->group(function () {
+    Route::get('backup/download', [BackupController::class, 'download']);
+    Route::get('cache-clear', [SettingAPIController::class, 'clearCache']);
+    Route::resource('currencies', CurrencyAPIController::class)->except(['index'])->names([
+        'create' => 'super-admin.currencies.create',
+        'store' => 'super-admin.currencies.store',
+        'show' => 'super-admin.currencies.show',
+        'edit' => 'super-admin.currencies.edit',
+        'update' => 'super-admin.currencies.update',
+        'destroy' => 'super-admin.currencies.destroy',
+    ]);
+    Route::resource('languages', LanguageAPIController::class)->except(['index'])->names([
+        'create' => 'super-admin.languages.create',
+        'store' => 'super-admin.languages.store',
+        'show' => 'super-admin.languages.show',
+        'edit' => 'super-admin.languages.edit',
+        'update' => 'super-admin.languages.update',
+        'destroy' => 'super-admin.languages.destroy',
+    ]);
+    Route::get('languages/translation/{language}', [LanguageAPIController::class, 'showTranslation']);
+    Route::post('languages/translation/{language}/update', [LanguageAPIController::class, 'updateTranslation']);
     Route::get('dashboard', [SaaSSuperAdminController::class, 'dashboard']);
     Route::get('organizations', [SaaSSuperAdminController::class, 'organizations']);
     Route::patch('organizations/{organization}', [SaaSSuperAdminController::class, 'updateOrganization']);
@@ -108,26 +129,28 @@ Route::middleware(['auth:sanctum', 'super.admin'])->prefix('super-admin')->group
 Route::middleware('auth:sanctum')->prefix('subscription-portal')->group(function () {
     Route::get('/', [SaaSSubscriptionPortalController::class, 'show']);
     Route::post('/payments', [SaaSSubscriptionPortalController::class, 'submitPayment']);
+    Route::post('/cancel', [SaaSSubscriptionPortalController::class, 'cancel']);
 });
 
 Route::get('/sri/lookup', [SriController::class, 'lookup']);
 Route::prefix('catalog/{store:slug}')->middleware('throttle:60,1')->group(function () {
     Route::get('/', [PublicCatalogController::class, 'show']);
 });
-Route::get('electronic-invoices/{electronicInvoice}/ride', [ElectronicInvoiceController::class, 'ride']);
-Route::get('electronic-invoices/{electronicInvoice}/xml', [ElectronicInvoiceController::class, 'descargarXml']);
 Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->group(function () {
+    Route::get('tenant-files/{category}/{filename}', TenantFileDownloadController::class)
+        ->where(['category' => 'excel|pdf', 'filename' => '[A-Za-z0-9][A-Za-z0-9._-]*']);
     Route::middleware(['abilities:*', 'permission:manage_sale|manage_pos_screen'])->prefix('offline-sync')->group(function () {
         Route::post('device-token', [OfflineSyncTokenController::class, 'store']);
         Route::delete('device-token', [OfflineSyncTokenController::class, 'destroy']);
     });
 
     // ── Facturación electrónica (SRI) ──────────────────────────────
-    Route::prefix('electronic-invoices')->group(function () {
+    Route::prefix('electronic-invoices')->middleware('permission:manage_electronic_invoices')->group(function () {
         Route::get('/', [ElectronicInvoiceController::class, 'index']);
         Route::get('/{electronicInvoice}', [ElectronicInvoiceController::class, 'show']);
         Route::get('/{electronicInvoice}/ruta', [ElectronicInvoiceController::class, 'ruta']);
-        // Route::get('/{electronicInvoice}/xml', [ElectronicInvoiceController::class, 'descargarXml']);
+        Route::get('/{electronicInvoice}/ride', [ElectronicInvoiceController::class, 'ride']);
+        Route::get('/{electronicInvoice}/xml', [ElectronicInvoiceController::class, 'descargarXml']);
     });
 
     Route::prefix('sri-config')->middleware('permission:manage_sri_config')->group(function () {
@@ -141,7 +164,7 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         Route::put('/sequences/{documentType}', [SriConfigController::class, 'updateSequence']);
     });
 
-    Route::prefix('sales/{sale}/electronic-invoice')->group(function () {
+    Route::prefix('sales/{sale}/electronic-invoice')->middleware('permission:manage_electronic_invoices')->group(function () {
         Route::post('/emitir', [ElectronicInvoiceController::class, 'emitir']);
         Route::get('/estado', [ElectronicInvoiceController::class, 'estado']);
         Route::post('/reintentar', [ElectronicInvoiceController::class, 'reintentar']);
@@ -154,24 +177,24 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         Route::delete('/brands/{brand}', [BrandAPIController::class, 'destroy']);
     });
     Route::get('/brands', [BrandAPIController::class, 'index']);
-    Route::get('ip-location/{ip}', [LoginLogController::class, 'getIpLocation']);
-
     //Dashboard
-    Route::get('today-sales-purchases-count', [DashboardAPIController::class, 'getPurchaseSalesCounts']);
-    Route::get('all-sales-purchases-count', [DashboardAPIController::class, 'getAllPurchaseSalesCounts']);
-    Route::get('recent-sales', [DashboardAPIController::class, 'getRecentSales']);
-    Route::get('top-selling-products', [DashboardAPIController::class, 'getTopSellingProducts']);
-    Route::get('week-selling-purchases', [DashboardAPIController::class, 'getWeekSalePurchases']);
-    Route::get('yearly-top-selling', [DashboardAPIController::class, 'getYearlyTopSelling']);
-    Route::get('top-customers', [DashboardAPIController::class, 'getTopCustomer']);
-    Route::get('stock-alerts', [DashboardAPIController::class, 'stockAlerts']);
-    Route::get('dashboard/today-overview', [DashboardAPIController::class, 'getTodayOverview']);
-    Route::get('dashboard/today-hourly-breakdown', [DashboardAPIController::class, 'getTodayHourlyBreakdown']);
-    Route::get('dashboard/performance-net-sales', [DashboardAPIController::class, 'getPerformanceNetSales']);
-    Route::get('dashboard/category-mix', [DashboardAPIController::class, 'getCategoryMix']);
-    Route::get('dashboard/top-products', [DashboardAPIController::class, 'getTopProducts']);
-    Route::get('dashboard/sales-heatmap', [DashboardAPIController::class, 'getSalesHeatmap']);
-    Route::get('dashboard/active-shifts', [DashboardAPIController::class, 'getActiveShifts']);
+    Route::middleware('permission:manage_dashboard')->group(function () {
+        Route::get('today-sales-purchases-count', [DashboardAPIController::class, 'getPurchaseSalesCounts']);
+        Route::get('all-sales-purchases-count', [DashboardAPIController::class, 'getAllPurchaseSalesCounts']);
+        Route::get('recent-sales', [DashboardAPIController::class, 'getRecentSales']);
+        Route::get('top-selling-products', [DashboardAPIController::class, 'getTopSellingProducts']);
+        Route::get('week-selling-purchases', [DashboardAPIController::class, 'getWeekSalePurchases']);
+        Route::get('yearly-top-selling', [DashboardAPIController::class, 'getYearlyTopSelling']);
+        Route::get('top-customers', [DashboardAPIController::class, 'getTopCustomer']);
+        Route::get('stock-alerts', [DashboardAPIController::class, 'stockAlerts']);
+        Route::get('dashboard/today-overview', [DashboardAPIController::class, 'getTodayOverview']);
+        Route::get('dashboard/today-hourly-breakdown', [DashboardAPIController::class, 'getTodayHourlyBreakdown']);
+        Route::get('dashboard/performance-net-sales', [DashboardAPIController::class, 'getPerformanceNetSales']);
+        Route::get('dashboard/category-mix', [DashboardAPIController::class, 'getCategoryMix']);
+        Route::get('dashboard/top-products', [DashboardAPIController::class, 'getTopProducts']);
+        Route::get('dashboard/sales-heatmap', [DashboardAPIController::class, 'getSalesHeatmap']);
+        Route::get('dashboard/active-shifts', [DashboardAPIController::class, 'getActiveShifts']);
+    });
 
     // get all permission
     Route::get('/permissions', [PermissionController::class, 'getPermissions'])->name('get-permissions');
@@ -193,10 +216,11 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
 
     Route::get('product-categories', [ProductCategoryAPIController::class, 'index']);
 
-    Route::middleware('permission:manage_currency')->group(function () {
-        Route::resource('currencies', CurrencyAPIController::class)->except(['index']);
-    });
+    // Monedas e idiomas son catálogos de plataforma, no datos de una
+    // organización. Los tenants pueden consultarlos y elegirlos en sus
+    // ajustes, pero sus mutaciones viven exclusivamente en super-admin.
     Route::get('currencies', [CurrencyAPIController::class, 'index']);
+    Route::get('currencies/{currency}', [CurrencyAPIController::class, 'show'])->name('currencies.show');
 
     // warehouses route
     Route::middleware('permission:manage_warehouses')->group(function () {
@@ -270,26 +294,37 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     Route::get('main-products/{product}', [MainProductAPIController::class, 'show']);
     Route::get('get-all-products', [ProductAPIController::class, 'getAllProducts']);
 
-    Route::resource('product-presentations', \App\Http\Controllers\API\ProductPresentationAPIController::class)
-        ->only(['index', 'store', 'update', 'destroy']);
+    Route::get('product-presentations', [\App\Http\Controllers\API\ProductPresentationAPIController::class, 'index']);
+    Route::middleware('permission:manage_products')->group(function () {
+        Route::resource('product-presentations', \App\Http\Controllers\API\ProductPresentationAPIController::class)
+            ->only(['store', 'update', 'destroy']);
+    });
     Route::get('presentation-catalog', [PresentationCatalogAPIController::class, 'index']);
     Route::middleware('permission:manage_products|manage_variations')->group(function () {
         Route::post('presentation-catalog/families', [PresentationCatalogAPIController::class, 'storeFamily']);
         Route::post('presentation-catalog/families/{family}/types', [PresentationCatalogAPIController::class, 'storeType']);
     });
 
-    Route::resource('product-kits', \App\Http\Controllers\API\ProductKitAPIController::class)
-        ->only(['index', 'store', 'update', 'destroy']);
-    // PUT con multipart/form-data no llega bien a $_FILES en PHP (mismo
-    // motivo por el que 'products/{product}' de abajo tiene su propio
-    // POST) -- necesario para poder editar el kit y su imagen en el
-    // mismo submit.
-    Route::post('product-kits/{product_kit}', [\App\Http\Controllers\API\ProductKitAPIController::class, 'update']);
+    Route::get('product-kits', [\App\Http\Controllers\API\ProductKitAPIController::class, 'index']);
+    Route::middleware('permission:manage_products')->group(function () {
+        Route::resource('product-kits', \App\Http\Controllers\API\ProductKitAPIController::class)
+            ->only(['store', 'update', 'destroy']);
+        // PUT con multipart/form-data no llega bien a $_FILES en PHP
+        // -- necesario para editar el kit y su imagen juntos.
+        Route::post('product-kits/{product_kit}', [\App\Http\Controllers\API\ProductKitAPIController::class, 'update']);
+    });
 
     Route::get('products/{product}/warehouse-prices', [\App\Http\Controllers\API\WarehousePriceAPIController::class, 'forProduct']);
-    Route::put('products/{product}/warehouse-prices', [\App\Http\Controllers\API\WarehousePriceAPIController::class, 'updateForProduct']);
     Route::get('product-presentations/{presentation}/warehouse-prices', [\App\Http\Controllers\API\WarehousePriceAPIController::class, 'forPresentation']);
-    Route::put('product-presentations/{presentation}/warehouse-prices', [\App\Http\Controllers\API\WarehousePriceAPIController::class, 'updateForPresentation']);
+    Route::middleware('permission:manage_products')->group(function () {
+        Route::put('products/{product}/warehouse-prices', [\App\Http\Controllers\API\WarehousePriceAPIController::class, 'updateForProduct']);
+        Route::put('product-presentations/{presentation}/warehouse-prices', [\App\Http\Controllers\API\WarehousePriceAPIController::class, 'updateForPresentation']);
+        Route::post('import-products', [ProductAPIController::class, 'importProducts']);
+        Route::get(
+            'products-export-excel/{id?}',
+            [ProductAPIController::class, 'getProductExportExcel']
+        )->name('products-export-excel');
+    });
 
     Route::middleware('permission:manage_variations')->group(function () {
         Route::resource('variations', VariationAPIController::class)->only(['store', 'update', 'destroy']);
@@ -301,17 +336,10 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         Route::resource('transfers', TransferAPIController::class);
     });
 
-    Route::post('import-products', [ProductAPIController::class, 'importProducts']);
-    Route::post('import-customers', [CustomerAPIController::class, 'importCustomers']);
-
-    Route::get(
-        'products-export-excel/{id?}',
-        [ProductAPIController::class, 'getProductExportExcel']
-    )->name('products-export-excel');
-
     // customers route
     Route::middleware('permission:manage_customers')->group(function () {
         Route::resource('customers', CustomerAPIController::class)->except(['index', 'store']);
+        Route::post('import-customers', [CustomerAPIController::class, 'importCustomers']);
     });
     Route::middleware('permission:change_customer_passwords')->group(function () {
         Route::post('customers/{customer}/change-password', [CustomerAPIController::class, 'updatePassword']);
@@ -340,8 +368,10 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     Route::get('edit-profile', [UserAPIController::class, 'editProfile'])->name('edit-profile');
     Route::post('update-profile', [UserAPIController::class, 'updateProfile'])->name('update-profile');
     Route::patch('/change-password', [UserAPIController::class, 'changePassword'])->name('user.changePassword');
-    Route::get('kardex', [KardexAPIController::class, 'index']);
+    Route::get('kardex', [KardexAPIController::class, 'index'])
+        ->middleware('permission:manage_kardex');
     Route::middleware('permission:manage_login_logs')->group(function () {
+        Route::get('ip-location/{ip}', [LoginLogController::class, 'getIpLocation']);
         Route::get('login-logs', [LoginLogController::class, 'index']);
         Route::delete('login-logs/bulk-delete', [LoginLogController::class, 'bulkDestroy']);
         Route::delete('login-logs/{id}', [LoginLogController::class, 'destroy']);
@@ -350,9 +380,9 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     //suppliers route
     Route::middleware('permission:manage_suppliers')->group(function () {
         Route::resource('suppliers', SupplierAPIController::class)->except(['index']);
+        Route::post('import-suppliers', [SupplierAPIController::class, 'importSuppliers']);
     });
     Route::get('suppliers', [SupplierAPIController::class, 'index']);
-    Route::post('import-suppliers', [SupplierAPIController::class, 'importSuppliers']);
 
     //sale
     Route::middleware('permission:manage_sale')->group(function () {
@@ -388,18 +418,25 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         Route::get('sales', [SaleAPIController::class, 'index'])->name('sales.index');
     });
 
-    Route::resource('holds', HoldAPIController::class);
+    Route::resource('holds', HoldAPIController::class)
+        ->middleware('permission:manage_sale|manage_pos_screen');
 
     // Quotation
-    Route::resource('quotations', QuotationAPIController::class);
-    Route::get('quotation-info/{quotation}', [QuotationAPIController::class, 'quotationInfo']);
-    Route::get('quotation-pdf-download/{quotation}', [QuotationAPIController::class, 'pdfDownload']);
+    Route::middleware('permission:manage_quotations')->group(function () {
+        Route::resource('quotations', QuotationAPIController::class);
+        Route::get('quotation-info/{quotation}', [QuotationAPIController::class, 'quotationInfo']);
+        Route::get('quotation-pdf-download/{quotation}', [QuotationAPIController::class, 'pdfDownload']);
+    });
 
-    Route::resource('mail-templates', MailTemplateAPIController::class);
-    Route::post('mail-template-status/{id}', [MailTemplateAPIController::class, 'changeActiveStatus']);
+    Route::middleware('permission:manage_email_templates')->group(function () {
+        Route::resource('mail-templates', MailTemplateAPIController::class);
+        Route::post('mail-template-status/{id}', [MailTemplateAPIController::class, 'changeActiveStatus']);
+    });
 
-    Route::resource('sms-templates', SmsTemplateAPIController::class);
-    Route::post('sms-template-status/{id}', [SmsTemplateAPIController::class, 'changeActiveStatus']);
+    Route::middleware('permission:manage_sms_templates')->group(function () {
+        Route::resource('sms-templates', SmsTemplateAPIController::class);
+        Route::post('sms-template-status/{id}', [SmsTemplateAPIController::class, 'changeActiveStatus']);
+    });
 
     //sale return
     Route::middleware('permission:manage_sale_return')->group(function () {
@@ -441,6 +478,7 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         Route::get('states/{id}', [SettingAPIController::class, 'getStates']);
         Route::get('mail-settings', [SettingAPIController::class, 'getMailSettings']);
         Route::post('mail-settings/update', [SettingAPIController::class, 'updateMailSettings']);
+        Route::get('cache-clear', [SettingAPIController::class, 'clearCache'])->name('cache-clear');
     });
 
     // El listado de idiomas alimenta el selector de idioma del navbar,
@@ -448,37 +486,17 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     // traducciones) -- por eso index() queda fuera del permiso
     // manage_language, igual que el patrón ya usado arriba con
     // settings->except(['index']). Crear/editar idiomas y traducciones
-    // sigue exigiendo el permiso.
+    // es una operación global y queda fuera del panel tenant.
     Route::get('languages', [LanguageAPIController::class, 'index']);
-    Route::middleware('permission:manage_language')->group(function () {
-        Route::resource('languages', LanguageAPIController::class)->except(['index']);
-        Route::get('languages/translation/{language}', [LanguageAPIController::class, 'showTranslation']);
-        Route::post('languages/translation/{language}/update', [LanguageAPIController::class, 'updateTranslation']);
-    });
+    Route::get('languages/translation/{language}', [LanguageAPIController::class, 'showTranslation']);
+    Route::get('languages/{language}', [LanguageAPIController::class, 'show'])->name('languages.show');
 
-    Route::resource('sms-settings', SmsSettingAPIController::class);
-    Route::post('sms-settings', [SmsSettingAPIController::class, 'update']);
+    Route::middleware('permission:manage_sms_apis')->group(function () {
+        Route::resource('sms-settings', SmsSettingAPIController::class);
+        Route::post('sms-settings', [SmsSettingAPIController::class, 'update']);
+    });
 
     Route::get('settings', [SettingAPIController::class, 'index']);
-
-    //clear cache route
-    Route::get('cache-clear', [SettingAPIController::class, 'clearCache'])->name('cache-clear');
-
-    // Backup de base de datos -- BackupController::download() existía
-    // pero nunca se registró la ruta, así que el botón de la pantalla
-    // de Ajustes (Settings.js) siempre devolvía 404.
-    //
-    // Antes esto exigía el rol 'admin' -- pero esta instalación tiene
-    // roles distintos con acceso administrativo (ej. 'SUPER_ADMIN'
-    // además de 'admin'), y "admin" ni siquiera es un nombre de rol
-    // fijo/reservado en Spatie: es solo una fila más en `roles`, cada
-    // negocio la nombra como quiera. Se gatea por el mismo permiso que
-    // ya protege el resto de la pantalla de Ajustes (manage_setting)
-    // en vez de un nombre de rol específico -- consistente con cómo ya
-    // se protegen mail-settings/settings arriba.
-    Route::middleware('permission:manage_setting')->group(function () {
-        Route::get('backup/download', [BackupController::class, 'download']);
-    });
 
     //purchase routes
     Route::middleware('permission:manage_purchase')->group(function () {
@@ -519,18 +537,18 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     //purchase return routes
     Route::middleware('permission:manage_purchase_return')->group(function () {
         Route::resource('purchases-return', PurchaseReturnAPIController::class)->only(['store', 'update', 'destroy']);
+        Route::get('purchases-return', [PurchaseReturnAPIController::class, 'index']);
+        Route::get('purchases-return/{purchasesReturn}/edit', [PurchaseReturnAPIController::class, 'edit']);
+        Route::get('purchases-return/{id}', [PurchaseReturnAPIController::class, 'show'])->name('purchases-return.show');
+        Route::get(
+            'purchase-return-info/{purchase_return}',
+            [PurchaseReturnAPIController::class, 'purchaseReturnInfo']
+        )->name('purchase-return-info');
+        Route::get(
+            'purchase-return-pdf-download/{purchase_return}',
+            [PurchaseReturnAPIController::class, 'pdfDownload']
+        )->name('purchase-return-pdf-download');
     });
-    Route::get('purchases-return', [PurchaseReturnAPIController::class, 'index']);
-    Route::get('purchases-return/{purchasesReturn}/edit', [PurchaseReturnAPIController::class, 'edit']);
-    Route::get('purchases-return/{id}', [PurchaseReturnAPIController::class, 'show'])->name('purchases-return.show');
-    Route::get(
-        'purchase-return-info/{purchase_return}',
-        [PurchaseReturnAPIController::class, 'purchaseReturnInfo']
-    )->name('purchase-return-info');
-    Route::get(
-        'purchase-return-pdf-download/{purchase_return}',
-        [PurchaseReturnAPIController::class, 'pdfDownload']
-    )->name('purchase-return-pdf-download');
 
     //Language Change
     Route::post('change-language', [UserAPIController::class, 'updateLanguage']);
@@ -722,7 +740,8 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     });
 
     // Coupon Code Routes
-    Route::resource('coupon-codes', CouponCodeAPIController::class);
+    Route::resource('coupon-codes', CouponCodeAPIController::class)
+        ->middleware('permission:manage_products');
 });
 
 Route::middleware([

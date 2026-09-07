@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import SweetAlert from "react-bootstrap-sweetalert";
 import apiConfig from "../../config/apiConfig";
 import MasterLayout from "../MasterLayout";
+import { downloadAuthenticatedFile } from "../../shared/downloadAuthenticatedFile";
 
 const CONCEPTO_LABEL = {
     POR_DEVOLUCION: "Por Devolución (ajustó stock)",
@@ -227,16 +228,21 @@ const CreditNoteDetails = () => {
                                 )}
 
                                 {estado === 'AUTORIZADA' && creditNote.electronic_invoice_id && (
-                                    <a
-                                        href={`/api/electronic-invoices/${creditNote.electronic_invoice_id}/ride`}
-                                        target="_blank"
-                                        rel="noreferrer"
+                                    <button
+                                        type="button"
+                                        onClick={() => downloadAuthenticatedFile(
+                                            `/api/electronic-invoices/${creditNote.electronic_invoice_id}/ride`,
+                                            { open: true }
+                                        ).catch(() => setMensajeEmision({
+                                            tipo: 'danger',
+                                            texto: 'No se pudo abrir el PDF del comprobante.',
+                                        }))}
                                         className="d-inline-flex align-items-center gap-1 mt-2 text-decoration-none"
                                         style={{ fontSize: 13 }}
                                     >
                                         <i className="bi bi-file-earmark-pdf" style={{ fontSize: 16 }} />
                                         Ver PDF
-                                    </a>
+                                    </button>
                                 )}
                             </div>
                         </div>

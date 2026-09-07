@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SaaS\EntitlementService;
+
 use App\Models\Customer;
 use App\Models\CustomerAccount;
 use App\Models\CatalogOrder;
@@ -365,6 +367,8 @@ class CatalogCustomerAuthController extends Controller
     private function ensureCatalogAvailable(Store $store): void
     {
         abort_unless($store->is_active, 404);
+        abort_unless($store->organization?->is_active, 404);
+        app(EntitlementService::class)->assertOrganizationWritable((int) $store->organization_id);
         $setting = $store->catalogSetting;
         abort_unless($setting?->is_enabled && $setting->warehouse_id, 404);
         abort_unless($store->warehouses()->whereKey($setting->warehouse_id)->active()->exists(), 404);

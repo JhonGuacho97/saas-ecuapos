@@ -36,11 +36,13 @@ class PurchaseReturnAPIController extends AppBaseController
 
     public function index(Request $request): PurchaseReturnCollection
     {
+        $storeId = $this->requireCurrentStoreId();
         $perPage = getPageSize($request);
         $search = $request->filter['search'] ?? '';
-        $supplier = (Supplier::where('name', 'LIKE', "%$search%")->get()->count() != 0);
-        $warehouse = (Warehouse::active()->where('name', 'LIKE', "%$search%")->get()->count() != 0);
+        $supplier = Supplier::where('store_id', $storeId)->where('name', 'LIKE', "%$search%")->exists();
+        $warehouse = Warehouse::where('store_id', $storeId)->active()->where('name', 'LIKE', "%$search%")->exists();
         $purchasesReturn = $this->purchaseReturnRepository;
+        $this->scopeQueryToCurrentStore($purchasesReturn);
         if ($supplier || $warehouse) {
             $purchasesReturn->whereHas('supplier', function (Builder $q) use ($search, $supplier) {
                 if ($supplier) {
@@ -75,6 +77,9 @@ class PurchaseReturnAPIController extends AppBaseController
     public function store(CreatePurchaseReturnRequest $request): PurchaseReturnResource
     {
         $input = $request->all();
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Supplier::class, $request->input('supplier_id'));
+        $this->authorizeProductItems($input['purchase_return_items'] ?? []);
         $purchaseReturn = $this->purchaseReturnRepository->storePurchaseReturn($input);
 
         return new PurchaseReturnResource($purchaseReturn);
@@ -83,12 +88,14 @@ class PurchaseReturnAPIController extends AppBaseController
     public function show($id): PurchaseReturnResource
     {
         $purchaseReturn = $this->purchaseReturnRepository->find($id);
+        $this->authorizeWarehouseAccess($purchaseReturn->warehouse_id);
 
         return new PurchaseReturnResource($purchaseReturn);
     }
 
     public function edit(PurchaseReturn $purchasesReturn): PurchaseReturnResource
     {
+        $this->authorizeWarehouseAccess($purchasesReturn->warehouse_id);
         $purchasesReturn = $purchasesReturn->load(
             'purchaseReturnItems.product.stocks',
             'purchaseReturnItems.productPresentation.variationType',
@@ -100,7 +107,12 @@ class PurchaseReturnAPIController extends AppBaseController
 
     public function update(UpdatePurchaseReturnRequest $request, $id): PurchaseReturnResource
     {
+        $existing = PurchaseReturn::findOrFail($id);
+        $this->authorizeWarehouseAccess($existing->warehouse_id);
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Supplier::class, $request->input('supplier_id'));
         $input = $request->all();
+        $this->authorizeProductItems($input['purchase_return_items'] ?? []);
         $purchaseReturn = $this->purchaseReturnRepository->updatePurchaseReturn($input, $id);
 
         return new PurchaseReturnResource($purchaseReturn);
@@ -111,6 +123,7 @@ class PurchaseReturnAPIController extends AppBaseController
         try {
             DB::beginTransaction();
             $purchaseReturn = $this->purchaseReturnRepository->where('id', $id)->with('purchaseReturnItems')->first();
+            $this->authorizeWarehouseAccess($purchaseReturn?->warehouse_id);
             foreach ($purchaseReturn->purchaseReturnItems as $purchaseReturnItem) {
                 manageStock(
                     $purchaseReturn->warehouse_id,
@@ -130,6 +143,7 @@ class PurchaseReturnAPIController extends AppBaseController
 
     public function purchaseReturnInfo(PurchaseReturn $purchaseReturn): JsonResponse
     {
+        $this->authorizeWarehouseAccess($purchaseReturn->warehouse_id);
         $purchaseReturn = $purchaseReturn->load([
             'purchaseReturnItems.product.variationType',
             'purchaseReturnItems.productPresentation.variationType',
@@ -139,7 +153,7 @@ class PurchaseReturnAPIController extends AppBaseController
         $keyName = [
             'email', 'company_name', 'phone', 'address',
         ];
-        $purchaseReturn['company_info'] = Setting::whereIn('key', $keyName)->pluck('value', 'key')->toArray();
+        $purchaseReturn['company_info'] = collect($keyName)->mapWithKeys(fn ($key) => [$key => getSettingValue($key)])->all();
 
         return $this->sendResponse($purchaseReturn, 'Purchase Return information retrieved successfully');
     }
@@ -150,6 +164,7 @@ class PurchaseReturnAPIController extends AppBaseController
      */
     public function pdfDownload(PurchaseReturn $purchaseReturn): JsonResponse
     {
+        $this->authorizeWarehouseAccess($purchaseReturn->warehouse_id);
         $purchaseReturn = $purchaseReturn->load(
             'purchaseReturnItems.product',
             'purchaseReturnItems.productPresentation.variationType',
@@ -157,18 +172,17 @@ class PurchaseReturnAPIController extends AppBaseController
         );
 
         $data = [];
-        if (Storage::exists('pdf/purchase_return-'.$purchaseReturn->reference_code.'.pdf')) {
-            Storage::delete('pdf/purchase_return-'.$purchaseReturn->reference_code.'.pdf');
-        }
+        $path = tenantMediaPath('pdf/purchase_return-'.$purchaseReturn->reference_code.'.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.purchase-return-pdf', compact('purchaseReturn'))->setOptions([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
 
-        Storage::disk(config('app.media_disc'))->put('pdf/purchase_return-'.$purchaseReturn->reference_code.'.pdf',
-            $pdf->output());
-        $data['purchase_return_pdf_url'] = Storage::url('pdf/purchase_return-'.$purchaseReturn->reference_code.'.pdf');
+        $disk->put($path, $pdf->output());
+        $data['purchase_return_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'purchase return pdf retrieved Successfully');
     }
@@ -181,6 +195,7 @@ class PurchaseReturnAPIController extends AppBaseController
             function ($q) use ($productId) {
                 $q->where('product_id', '=', $productId);
             })->with(['purchaseReturnItems.product.variationType', 'supplier']);
+        $this->scopeQueryToCurrentStore($purchaseReturn);
 
         $purchaseReturn = $purchaseReturn->paginate($perPage);
         PurchaseReturnResource::usingWithCollection();

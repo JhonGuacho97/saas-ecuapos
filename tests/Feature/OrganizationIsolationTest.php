@@ -45,7 +45,7 @@ class OrganizationIsolationTest extends TestCase
 
         $this->withHeader('X-Store-Id', $foreignStore->id)
             ->getJson('/api/current-organization')
-            ->assertUnprocessable();
+            ->assertForbidden();
     }
 
     public function test_organization_header_must_match_selected_store(): void
@@ -58,7 +58,7 @@ class OrganizationIsolationTest extends TestCase
         $this->withHeaders([
             'X-Store-Id' => $store->id,
             'X-Organization-Id' => $other->id,
-        ])->getJson('/api/current-organization')->assertUnprocessable();
+        ])->getJson('/api/current-organization')->assertForbidden();
 
         $this->assertNotSame($organization->id, $other->id);
     }
@@ -193,7 +193,7 @@ class OrganizationIsolationTest extends TestCase
             ->assertJsonPath('data.attributes.default_warehouse', null)
             ->assertJsonPath('data.attributes.default_customer', null);
         $this->getJson('/api/available-cash-registers')->assertUnprocessable();
-        $this->getJson('/api/available-cash-registers?warehouse_id='.$foreignWarehouse->id)->assertUnprocessable();
+        $this->getJson('/api/available-cash-registers?warehouse_id='.$foreignWarehouse->id)->assertForbidden();
     }
 
     public function test_inactive_store_default_is_replaced_with_an_active_local_warehouse(): void
@@ -224,7 +224,7 @@ class OrganizationIsolationTest extends TestCase
             ->assertJsonPath('data.default_warehouse_id', $assigned->id);
         $this->getJson('/api/warehouses?for_pos=1&page[size]=100')->assertOk()
             ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $assigned->id);
-        $this->getJson('/api/available-cash-registers?warehouse_id='.$first->id)->assertUnprocessable();
+        $this->getJson('/api/available-cash-registers?warehouse_id='.$first->id)->assertForbidden();
         $assigned->update(['is_active' => false]);
         $this->getJson('/api/config')->assertOk()->assertJsonPath('data.default_warehouse_id', null);
     }

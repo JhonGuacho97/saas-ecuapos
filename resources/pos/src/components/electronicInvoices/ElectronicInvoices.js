@@ -12,6 +12,7 @@ import { getFormattedMessage } from "../../shared/sharedMethod";
 import { ElectronicInvoiceStatusBadge } from "../sri/ElectronicInvoiceStatus";
 import RutaEmisionPanel from "../sri/RutaEmisionPanel";
 import ResourceListHeader from "../../shared/components/ResourceListHeader";
+import { downloadAuthenticatedFile } from "../../shared/downloadAuthenticatedFile";
 import "../../assets/scss/custom/pages/resource-list.scss";
 import "../../assets/scss/custom/pages/fiscal-documents.scss";
 
@@ -409,15 +410,20 @@ const ElectronicInvoices = () => {
                                             </button>
                                         )}
                                         {doc.estado === "AUTORIZADA" && (
-                                            <a
-                                                href={`/api/electronic-invoices/${doc.id}/ride`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                            <button
+                                                type="button"
+                                                onClick={() => downloadAuthenticatedFile(
+                                                    `/api/electronic-invoices/${doc.id}/ride`,
+                                                    { open: true }
+                                                ).catch(() => dispatch(addToast({
+                                                    text: "No se pudo abrir el RIDE.",
+                                                    type: "error",
+                                                })))}
                                                 className="btn btn-sm btn-outline-success fiscal-action-button"
                                                 title="Descargar RIDE"
                                             >
                                                 <FontAwesomeIcon icon={faFileInvoice} />
-                                            </a>
+                                            </button>
                                         )}
                                     </td>
                                 </tr>

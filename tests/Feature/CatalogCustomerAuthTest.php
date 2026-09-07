@@ -9,14 +9,18 @@ use App\Models\Brand;
 use App\Models\Customer;
 use App\Models\CustomerAccount;
 use App\Models\ManageStock;
+use App\Models\Organization;
+use App\Models\OrganizationSubscription;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductPresentation;
 use App\Models\PresentationFamily;
 use App\Models\PresentationType;
 use App\Models\Store;
+use App\Models\SaaSPlan;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -26,6 +30,13 @@ use Tests\TestCase;
 class CatalogCustomerAuthTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(ThrottleRequests::class);
+    }
 
     public function test_customer_can_register_and_receive_a_store_scoped_session(): void
     {
@@ -307,7 +318,33 @@ class CatalogCustomerAuthTest extends TestCase
     private function catalogStore(): Store
     {
         $suffix = Str::lower(Str::random(10));
+        $organization = Organization::create([
+            'name' => "Organización catálogo {$suffix}",
+            'slug' => "organizacion-catalogo-{$suffix}",
+            'is_active' => true,
+        ]);
+        $plan = SaaSPlan::create([
+            'code' => "catalog-{$suffix}",
+            'name' => 'Plan catálogo',
+            'price' => 0,
+            'currency' => 'USD',
+            'billing_interval' => 'month',
+            'billing_interval_count' => 1,
+            'trial_days' => 0,
+            'grace_days' => 0,
+            'features' => [],
+            'is_active' => true,
+        ]);
+        OrganizationSubscription::create([
+            'organization_id' => $organization->id,
+            'saas_plan_id' => $plan->id,
+            'status' => OrganizationSubscription::STATUS_ACTIVE,
+            'starts_at' => now(),
+            'current_period_starts_at' => now(),
+            'current_period_ends_at' => now()->addMonth(),
+        ]);
         $store = Store::create([
+            'organization_id' => $organization->id,
             'name' => "Catálogo {$suffix}",
             'slug' => "catalogo-{$suffix}",
             'is_active' => true,

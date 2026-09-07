@@ -30,9 +30,7 @@ class BrandAPIController extends AppBaseController
         $brands = $this->brandRepository->withCount('products')->when($sort,
             function ($q) use ($sort) {
                 $q->orderBy('products_count', $sort);
-            })->when($this->currentStoreId(), function ($q, $storeId) {
-                $q->where('store_id', $storeId);
-            })->paginate($perPage);
+            })->where('store_id', $this->requireCurrentStoreId())->paginate($perPage);
 
         $data = [];
         foreach ($brands as $brand) {

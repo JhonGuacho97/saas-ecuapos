@@ -22,6 +22,7 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function emitir(Sale $sale, ElectronicInvoiceRequestService $invoiceRequests): JsonResponse
     {
+        $this->authorizeWarehouseAccess($sale->warehouse_id);
         if ($sale->electronicInvoice) {
             return response()->json([
                 'success' => false,
@@ -52,6 +53,7 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function estado(Sale $sale): JsonResponse
     {
+        $this->authorizeWarehouseAccess($sale->warehouse_id);
         $factura = $sale->electronicInvoice()->first();
 
         if (!$factura) {
@@ -96,6 +98,7 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function reintentar(Sale $sale): JsonResponse
     {
+        $this->authorizeWarehouseAccess($sale->warehouse_id);
         $factura = $sale->electronicInvoice;
 
         if (!$factura) {
@@ -138,12 +141,10 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function index(Request $request): JsonResponse
     {
+        $storeId = $this->requireCurrentStoreId();
         $query = ElectronicInvoice::with(['sale.customer'])
+            ->where('store_id', $storeId)
             ->orderBy('created_at', 'desc');
-
-        if ($storeId = $this->currentStoreId()) {
-            $query->where('store_id', $storeId);
-        }
 
         if ($request->filled('estado') && $request->input('estado') !== 'TODOS') {
             $query->where('estado', $request->input('estado'));
@@ -268,6 +269,7 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function show(ElectronicInvoice $electronicInvoice): JsonResponse
     {
+        $this->authorizeElectronicInvoiceAccess($electronicInvoice);
         $electronicInvoice->load('sale.customer', 'sale.saleItems.product');
 
         return response()->json([
@@ -278,6 +280,7 @@ class ElectronicInvoiceController extends AppBaseController
 
     public function ride(ElectronicInvoice $electronicInvoice, SriRideService $rideService): Response
     {
+        $this->authorizeElectronicInvoiceAccess($electronicInvoice);
         if (!$electronicInvoice->estaAutorizada()) {
             return response()->json([
                 'success' => false,
@@ -301,6 +304,7 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function descargarXml(ElectronicInvoice $electronicInvoice): Response
     {
+        $this->authorizeElectronicInvoiceAccess($electronicInvoice);
         $xml = $electronicInvoice->xml_autorizado ?: $electronicInvoice->xml_firmado;
 
         if (!$xml) {
@@ -323,6 +327,7 @@ class ElectronicInvoiceController extends AppBaseController
      */
     public function ruta(ElectronicInvoice $electronicInvoice): JsonResponse
     {
+        $this->authorizeElectronicInvoiceAccess($electronicInvoice);
         $electronicInvoice->load('sale.customer');
 
         return response()->json([
@@ -340,5 +345,11 @@ class ElectronicInvoiceController extends AppBaseController
                 'pasos' => $electronicInvoice->rutaEmision(),
             ],
         ]);
+    }
+
+    private function authorizeElectronicInvoiceAccess(ElectronicInvoice $electronicInvoice): void
+    {
+        $storeId = $this->requireCurrentStoreId();
+        abort_unless((int) $electronicInvoice->store_id === $storeId, 403, 'No tiene permiso para acceder a este comprobante.');
     }
 }

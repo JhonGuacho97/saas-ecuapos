@@ -6,6 +6,7 @@ use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * App\Models\CouponCode
@@ -45,6 +46,7 @@ class CouponCode extends BaseModel implements JsonResourceful
     use HasFactory, HasJsonResourcefulData;
 
     protected $fillable = [
+        'store_id',
         'name',
         'code',
         'start_date',
@@ -116,5 +118,10 @@ class CouponCode extends BaseModel implements JsonResourceful
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'coupon_product');
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 }

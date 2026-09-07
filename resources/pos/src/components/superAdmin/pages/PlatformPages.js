@@ -772,7 +772,10 @@ export function Payments({ setNotice }) {
         try {
             const response = await apiConfig.get(
                 `super-admin/payments/${item.id}/proof`,
-                { responseType: "blob" },
+                {
+                    responseType: "blob",
+                    skipGlobalErrorRedirect: true,
+                },
             );
             const url = URL.createObjectURL(response.data);
             if (request !== proofRequest.current) {
@@ -922,8 +925,13 @@ function PaymentsTable({ rows, onApprove, onReject, onProof }) {
                                     <div className="sa-actions">
                                         {item.proof_path && (
                                             <button
+                                                type="button"
                                                 className="sa-btn sa-btn--soft"
-                                                onClick={() => onProof(item)}
+                                                onClick={(event) => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    onProof(item);
+                                                }}
                                             >
                                                 <FontAwesomeIcon icon={faEye} />{" "}
                                                 Comprobante
@@ -932,6 +940,7 @@ function PaymentsTable({ rows, onApprove, onReject, onProof }) {
                                         {item.status === "PENDING" && (
                                             <>
                                                 <button
+                                                    type="button"
                                                     className="sa-btn sa-btn--approve"
                                                     onClick={() =>
                                                         onApprove(item)
@@ -943,6 +952,7 @@ function PaymentsTable({ rows, onApprove, onReject, onProof }) {
                                                     Aprobar
                                                 </button>
                                                 <button
+                                                    type="button"
                                                     className="sa-btn sa-btn--reject"
                                                     onClick={() =>
                                                         onReject(item)

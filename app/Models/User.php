@@ -95,7 +95,6 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
         'password',
         'language',
         'default_warehouse_id',
-        'is_super_admin',
     ];
 
     public static $rules = [

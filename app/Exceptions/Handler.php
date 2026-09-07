@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Exceptions\UnauthorizedException;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -107,6 +108,13 @@ class Handler extends ExceptionHandler
                 'success' => false,
                 'message' => 'User dose not have the right permission.',
             ]), ResponseAlias::HTTP_FORBIDDEN);
+        }
+
+        if ($exception instanceof HttpExceptionInterface && ($request->expectsJson() || $request->isXmlHttpRequest())) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], $exception->getStatusCode());
         }
 
         //        if ($exception instanceof ValidationException) {

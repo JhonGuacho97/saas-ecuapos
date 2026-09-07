@@ -23,8 +23,12 @@ class SaleAPIController extends AppBaseController
 
     public function store(CreateSaleRequest $request): SaleResource
     {
+        $this->authorizeWarehouseAccess((int) $request->input('warehouse_id'));
+        $this->authorizeStoreModelId(\App\Models\Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($request->input('sale_items', []));
         if (isset($request->hold_ref_no)) {
-            $holdExist = Hold::whereReferenceCode($request->hold_ref_no)->first();
+            $holdExist = Hold::whereReferenceCode($request->hold_ref_no)
+                ->where('warehouse_id', $request->input('warehouse_id'))->first();
             if (! empty($holdExist)) {
                 $holdExist->delete();
             }

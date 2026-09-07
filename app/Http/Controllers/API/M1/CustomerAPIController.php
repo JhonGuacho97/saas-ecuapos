@@ -23,9 +23,7 @@ class CustomerAPIController extends AppBaseController
     public function index(): JsonResponse
     {
         $customersQuery = $this->customerRepository;
-        if ($storeId = $this->currentStoreId()) {
-            $customersQuery->where('store_id', $storeId);
-        }
+        $customersQuery->where('store_id', $this->requireCurrentStoreId());
         $customers = $customersQuery->get();
         $data = [];
         foreach ($customers as $customer) {
@@ -44,7 +42,7 @@ class CustomerAPIController extends AppBaseController
         if (! empty($input['dob'])) {
             $input['dob'] = $input['dob'] ?? date('Y/m/d');
         }
-        $input['store_id'] = $input['store_id'] ?? $this->requireCurrentStoreId();
+        $input['store_id'] = $this->requireCurrentStoreId();
         $this->customerRepository->create($input);
 
         return $this->sendSuccess('Customer created successfully');

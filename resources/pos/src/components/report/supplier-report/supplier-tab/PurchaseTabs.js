@@ -12,6 +12,7 @@ import { fetchSupplierPurchaseReport } from "../../../../store/action/supplierPu
 import apiConfig from "../../../../config/apiConfig";
 import { apiBaseURL, toastType } from "../../../../constants";
 import { addToast } from "../../../../store/action/toastAction";
+import { downloadAuthenticatedFile } from "../../../../shared/downloadAuthenticatedFile";
 
 const PurchaseTab = (props) => {
     const {
@@ -140,8 +141,8 @@ const PurchaseTab = (props) => {
             .get(
                 apiBaseURL.SUPPLIER_PURCHASE_REPORT_EXCEL + "?supplier_id=" + id
             )
-            .then((response) => {
-                window.open(response.data.data.purchase_excel_url, "_blank");
+            .then(async (response) => {
+                await downloadAuthenticatedFile(response.data.data.purchase_excel_url, { filename: "compras-proveedor.xlsx" });
             })
             .catch(({ response }) => {
                 dispatch(

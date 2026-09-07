@@ -105,7 +105,14 @@ class SaaSOnboardingTest extends TestCase
     public function test_duplicate_owner_email_does_not_create_partial_tenant(): void
     {
         config(['saas.self_registration_enabled' => true]);
-        $existing = User::firstOrFail();
+        $existing = User::create([
+            'first_name' => 'Usuario',
+            'last_name' => 'Existente',
+            'email' => 'existing-'.Str::lower(Str::random(10)).'@example.test',
+            'phone' => '0999999999',
+            'password' => bcrypt('ClaveSaaS123'),
+            'language' => 'sp',
+        ]);
         $beforeOrganizations = Organization::count();
         $beforeStores = Store::count();
 

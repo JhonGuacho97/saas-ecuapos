@@ -41,9 +41,9 @@ class SmsTemplateRepository extends BaseRepository
         return SmsTemplate::class;
     }
 
-    public function updateSmsTemplate($input, $id)
+    public function updateSmsTemplate($input, $id, int $storeId)
     {
-        $smsTemplate = SmsTemplate::whereId($id)->firstOrFail();
+        $smsTemplate = SmsTemplate::where('store_id', $storeId)->whereId($id)->firstOrFail();
         $smsTemplate->update([
             'content' => $input['content'],
         ]);

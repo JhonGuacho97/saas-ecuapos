@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\CouponCode;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateCouponCodeRequest extends FormRequest
 {
@@ -23,7 +24,12 @@ class UpdateCouponCodeRequest extends FormRequest
     public function rules(): array
     {
         $rules = CouponCode::$rules;
-        $rules['code'] = 'required|unique:coupon_codes,code,'.$this->route('coupon_code')->id;
+        $rules['code'] = [
+            'required',
+            Rule::unique('coupon_codes', 'code')
+                ->where(fn ($query) => $query->where('store_id', currentStoreId()))
+                ->ignore($this->route('coupon_code')->id),
+        ];
 
         return $rules;
     }

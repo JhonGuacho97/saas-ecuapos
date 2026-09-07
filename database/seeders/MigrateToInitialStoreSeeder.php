@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Fase 2 de la migración multitienda -- backfillea TODOS los datos
@@ -27,6 +28,24 @@ class MigrateToInitialStoreSeeder extends Seeder
 {
     public function run(): void
     {
+        // En una instalación SaaS nueva no existe todavía ningún tenant. Esta
+        // migración nació para convertir instalaciones antiguas de un solo
+        // negocio y antes creaba una tienda "EcuaPos" incluso sobre una base
+        // completamente vacía. Además de ensuciar el alta inicial, las
+        // migraciones SaaS posteriores convertían esa tienda artificial en una
+        // organización con una suscripción heredada.
+        //
+        // Las tablas de referencia (permisos, idiomas, unidades, países,
+        // plantillas y settings globales) sí pueden contener filas porque
+        // migraciones históricas las inicializan. No son señal de un tenant
+        // heredado; por eso solo miramos usuarios y datos operativos.
+        if (! Store::query()->exists() && ! $this->hasLegacyTenantData()) {
+            $this->removeOrphanedTenantRoles();
+            $this->command?->info('Base SaaS nueva: no se crea una tienda heredada.');
+
+            return;
+        }
+
         DB::transaction(function () {
             $store = $this->resolveInitialStore();
 
@@ -49,6 +68,53 @@ class MigrateToInitialStoreSeeder extends Seeder
         });
 
         $this->command?->info('Store inicial: ' . Store::first()?->name . ' (id=' . Store::first()?->id . ')');
+    }
+
+    /**
+     * Determina si realmente hay un negocio anterior que deba migrarse.
+     * Mantener esta lista limitada a entidades tenant evita confundir los
+     * catálogos globales sembrados por migraciones antiguas con una empresa.
+     */
+    private function hasLegacyTenantData(): bool
+    {
+        foreach ([
+            'users',
+            'warehouses',
+            'products',
+            'main_products',
+            'product_categories',
+            'brands',
+            'variations',
+            'variation_types',
+            'customers',
+            'suppliers',
+            'expense_categories',
+            'sales',
+            'purchases',
+        ] as $table) {
+            if (DB::table($table)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Seeders históricos crean el rol tenant "admin" antes de que exista la
+     * tabla stores. En un SaaS nuevo ese rol global no pertenece a nadie y
+     * Spatie lo considera candidato para cualquier team, impidiendo crear el
+     * primer rol admin de una tienda. Los permisos sí permanecen como catálogo
+     * global; solo se eliminan roles huérfanos cuando ya comprobamos que no hay
+     * datos tenant que preservar.
+     */
+    private function removeOrphanedTenantRoles(): void
+    {
+        DB::table('role_has_permissions')->delete();
+        DB::table('model_has_roles')->delete();
+        DB::table('roles')->delete();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     /**

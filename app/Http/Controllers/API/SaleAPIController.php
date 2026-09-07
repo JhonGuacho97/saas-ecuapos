@@ -231,9 +231,9 @@ class SaleAPIController extends AppBaseController
             'end_date' => $request->get('end_date'),
         ];
 
-        if (Storage::exists('pdf/sales-report.pdf')) {
-            Storage::delete('pdf/sales-report.pdf');
-        }
+        $path = tenantMediaPath('pdf/sales-report.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = Pdf::loadView('pdf.sale-report-pdf', compact('sales', 'totals', 'filters'))
             ->setOptions([
@@ -241,13 +241,13 @@ class SaleAPIController extends AppBaseController
                 'chroot' => public_path(),
             ]);
 
-        Storage::disk(config('app.media_disc'))->put('pdf/sales-report.pdf', $pdf->output());
+        $disk->put($path, $pdf->output());
 
         // El nombre del archivo es siempre el mismo (se sobreescribe en cada
         // descarga), así que el navegador puede quedarse con una copia en
         // caché de una descarga anterior. Un parámetro único en la URL
         // fuerza a que siempre pida el archivo fresco.
-        $data['sale_report_pdf_url'] = Storage::url('pdf/sales-report.pdf') . '?v=' . time();
+        $data['sale_report_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'PDF retrieved successfully');
     }
@@ -255,8 +255,11 @@ class SaleAPIController extends AppBaseController
     public function store(CreateSaleRequest $request): SaleResource
     {
         $this->authorizeWarehouseAccess($request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($request->input('sale_items', []));
         if (isset($request->hold_ref_no)) {
-            $holdExist = Hold::whereReferenceCode($request->hold_ref_no)->first();
+            $holdExist = Hold::whereReferenceCode($request->hold_ref_no)
+                ->where('warehouse_id', $request->input('warehouse_id'))->first();
             if (!empty($holdExist)) {
                 $holdExist->delete();
             }
@@ -291,6 +294,9 @@ class SaleAPIController extends AppBaseController
     public function update(UpdateSaleRequest $request, $id): SaleResource
     {
         $this->authorizeWarehouseAccess(Sale::findOrFail($id)->warehouse_id);
+        $this->authorizeWarehouseAccess($request->input('warehouse_id'));
+        $this->authorizeStoreModelId(Customer::class, $request->input('customer_id'));
+        $this->authorizeProductItems($request->input('sale_items', []));
         $input = $request->all();
         $sale = $this->saleRepository->updateSale($input, $id);
 
@@ -357,17 +363,17 @@ class SaleAPIController extends AppBaseController
         );
         $data = [];
 
-        if (Storage::exists('pdf/Sale-' . $sale->reference_code . '.pdf')) {
-            Storage::delete('pdf/Sale-' . $sale->reference_code . '.pdf');
-        }
+        $path = tenantMediaPath('pdf/Sale-' . $sale->reference_code . '.pdf');
+        $disk = Storage::disk('tenant_private');
+        $disk->delete($path);
 
         $pdf = PDF::loadView('pdf.sale-pdf', compact('sale'))->setOption([
             'tempDir' => public_path(),
             'chroot' => public_path(),
         ]);
 
-        Storage::disk(config('app.media_disc'))->put('pdf/Sale-' . $sale->reference_code . '.pdf', $pdf->output());
-        $data['sale_pdf_url'] = Storage::url('pdf/Sale-' . $sale->reference_code . '.pdf');
+        $disk->put($path, $pdf->output());
+        $data['sale_pdf_url'] = tenantPrivateDownloadUrl('pdf/'.basename($path));
 
         return $this->sendResponse($data, 'pdf retrieved Successfully');
     }
@@ -395,7 +401,7 @@ class SaleAPIController extends AppBaseController
             'sri_nombre_comercial',
             'sri_dir_matriz',
         ];
-        $sale['company_info'] = Setting::whereIn('key', $keyName)->pluck('value', 'key')->toArray();
+        $sale['company_info'] = collect($keyName)->mapWithKeys(fn ($key) => [$key => getSettingValue($key)])->all();
 
         // El PNG del código de barras ya se genera y se guarda al crear
         // la venta (SaleRepository::generateBarcode) -- acá solo se

@@ -21,9 +21,13 @@ class SmsSettingAPIController extends AppBaseController
 
     public function index(): JsonResponse
     {
-        $smsSettings = SmsSetting::where('key', '!=', 'sms_status')->select('key', 'value')->get();
+        $storeId = $this->requireCurrentStoreId();
+        $this->ensureStoreSettings($storeId);
+        $smsSettings = SmsSetting::where('store_id', $storeId)
+            ->where('key', '!=', 'sms_status')->select('key', 'value')->get();
         $data = $smsSettings->toArray();
-        $status = SmsSetting::where('key', 'sms_status')->select('key', 'value')->first();
+        $status = SmsSetting::where('store_id', $storeId)
+            ->where('key', 'sms_status')->select('key', 'value')->first();
 
         return $this->sendResponse(new SmsSettingResource(['sms_status' => $status, 'attributes' => $data]),
             'Sms Setting data retrieved successfully.');
@@ -75,7 +79,7 @@ class SmsSettingAPIController extends AppBaseController
     public function update(Request $request): JsonResponse
     {
         $input = $request->all();
-        $smsSettings = $this->smsSettingRepository->updateSmsSettings($input);
+        $smsSettings = $this->smsSettingRepository->updateSmsSettings($input, $this->requireCurrentStoreId());
 
         return $this->sendResponse($input['sms_data'], 'Sms Setting data updated successfully');
     }
@@ -88,5 +92,15 @@ class SmsSettingAPIController extends AppBaseController
     public function destroy(int $id)
     {
         //
+    }
+
+    private function ensureStoreSettings(int $storeId): void
+    {
+        SmsSetting::whereNull('store_id')->get()->each(function (SmsSetting $setting) use ($storeId) {
+            SmsSetting::firstOrCreate(
+                ['store_id' => $storeId, 'key' => $setting->key],
+                ['value' => $setting->value]
+            );
+        });
     }
 }

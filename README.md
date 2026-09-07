@@ -28,23 +28,26 @@ composer install
 Copia el archivo .env.example y renómbralo a .env:
 Configura la conexión a la base de datos en el archivo .env:
 
-### 3. Importar la base de datos
+### 3. Preparar la base de datos
 
 **Solo para entorno LOCAL de desarrollo.** Dirígete a la carpeta `/database`
 e importa el archivo `pos.sql`.
 
-⚠️ **No importes `pos.sql` en producción.** Es un dump de datos de
-demostración/desarrollo e incluye un usuario `admin@ecua-pos.com` con una
-contraseña de ejemplo conocida. En producción usa en su lugar:
+⚠️ **No importes `pos.sql` en una instalación SaaS nueva.** Es un dump de
+datos de demostración/desarrollo e incluye datos de una instalación anterior.
+En una base vacía usa:
 
 ```bash
-php artisan migrate --seed
+php artisan migrate --force
+php artisan saas:install
 ```
 
-Esto crea el esquema desde cero y genera un usuario admin con una
-contraseña aleatoria (impresa una única vez en la consola al correr el
-seeder — guárdala en ese momento, no se vuelve a mostrar, y cámbiala
-después del primer login).
+El instalador solicita las credenciales de forma interactiva y crea un único
+superadministrador global, sin organización, tienda, bodega ni datos de
+negocio. Las organizaciones se crean después mediante el registro público.
+
+No uses `php artisan migrate --seed` para este escenario: el seeder general se
+conserva para instalaciones POS heredadas y entornos de desarrollo.
 
 ### 4. Instalar dependencias de Node.js
 npm install
@@ -58,7 +61,9 @@ npm run dev
 
 - `php artisan key:generate` en el `.env` real de producción — nunca
   reutilizar el `APP_KEY` de `.env.example`.
-- `php artisan migrate --seed` (no importar `pos.sql`).
+- En un SaaS nuevo: `php artisan migrate --force` y después
+  `php artisan saas:install` (no importar `pos.sql` ni ejecutar el seeder
+  general).
 - `QUEUE_CONNECTION=database` (no `sync`) + cron para `php artisan queue:work`,
   necesario para que la facturación electrónica SRI funcione de forma
   asíncrona y no bloquee el request del usuario.

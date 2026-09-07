@@ -71,7 +71,6 @@ class SaaSBillingTest extends TestCase
             'phone' => '0999999999',
             'password' => bcrypt('secret123'),
             'language' => 'sp',
-            'is_super_admin' => false,
         ]);
         Sanctum::actingAs($user, ['*']);
 
@@ -87,8 +86,8 @@ class SaaSBillingTest extends TestCase
             'phone' => '0999999998',
             'password' => bcrypt('secret123'),
             'language' => 'sp',
-            'is_super_admin' => true,
         ]);
+        $user->forceFill(['is_super_admin' => true])->save();
         Sanctum::actingAs($user, ['*']);
 
         $this->getJson('/api/super-admin/dashboard')

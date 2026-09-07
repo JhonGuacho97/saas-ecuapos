@@ -121,9 +121,31 @@ function canDelete(array $models, string $columnName, int $id): bool
 
 function getCurrencyCode()
 {
-    $currencyId = Setting::where('key', '=', 'currency')->first()->value;
+    $currencyId = getSettingValue('currency');
 
-    return Currency::whereId($currencyId)->first()->symbol;
+    return Currency::whereId($currencyId)->value('symbol');
+}
+
+if (! function_exists('tenantMediaPath')) {
+    /**
+     * Namespace generated artifacts by tenant and store so concurrent
+     * downloads from different customers can never overwrite each other.
+     */
+    function tenantMediaPath(string $relativePath): string
+    {
+        return 'tenants/'.requireCurrentOrganizationId().'/stores/'.requireCurrentStoreId().'/'.ltrim($relativePath, '/');
+    }
+}
+
+if (! function_exists('tenantPrivateDownloadUrl')) {
+    function tenantPrivateDownloadUrl(string $relativePath): string
+    {
+        $relativePath = ltrim($relativePath, '/');
+        $category = dirname($relativePath);
+        $filename = basename($relativePath);
+
+        return url('/api/tenant-files/'.rawurlencode($category).'/'.rawurlencode($filename));
+    }
 }
 
 function getLoginUserLanguage(): string

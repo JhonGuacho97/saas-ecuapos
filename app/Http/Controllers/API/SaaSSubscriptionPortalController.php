@@ -167,6 +167,62 @@ class SaaSSubscriptionPortalController extends AppBaseController
         return response()->json(['success' => true, 'data' => $this->safePayment($payment), 'message' => 'Comprobante enviado para revisión.'], 201);
     }
 
+    public function cancel(
+        Request $request,
+        SubscriptionAdministration $administration,
+        \App\Services\SaaS\BillingService $billing
+    ): JsonResponse {
+        $organization = $this->organizationFor($request);
+        abort_unless($administration->canManage(
+            $request->user('sanctum'),
+            $organization
+        ), 403, 'Solo un administrador de la organización puede gestionar la suscripción.');
+
+        $data = $request->validate([
+            'reason' => ['required', Rule::in([
+                'TOO_EXPENSIVE', 'MISSING_FEATURES', 'NOT_USING',
+                'TECHNICAL_ISSUES', 'BUSINESS_CLOSED', 'OTHER',
+            ])],
+            'note' => [
+                'required_if:reason,OTHER',
+                'nullable', 'string', 'max:1000',
+            ],
+        ], [
+            'reason.required' => 'Selecciona el motivo de la cancelación.',
+            'reason.in' => 'El motivo seleccionado no es válido.',
+            'note.required_if' => 'Escribe una nota cuando selecciones “Otro motivo”.',
+            'note.max' => 'La nota no puede superar los 1000 caracteres.',
+        ]);
+
+        $subscription = OrganizationSubscription::where('organization_id', $organization->id)->firstOrFail();
+        if ($subscription->cancel_at_period_end) {
+            throw ValidationException::withMessages([
+                'reason' => 'La cancelación de esta suscripción ya está programada.',
+            ]);
+        }
+        if (! in_array($subscription->status, [
+            OrganizationSubscription::STATUS_ACTIVE,
+            OrganizationSubscription::STATUS_TRIALING,
+            OrganizationSubscription::STATUS_PAST_DUE,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'reason' => 'Esta suscripción ya no puede cancelarse.',
+            ]);
+        }
+
+        $subscription = $billing->cancel($subscription, true, [
+            'reason' => $data['reason'],
+            'note' => $data['note'] ?? null,
+            'requested_by_customer' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $subscription,
+            'message' => 'La suscripción se cancelará al finalizar el período vigente.',
+        ]);
+    }
+
     private function safePayment(SaaSPayment $payment): array
     {
         return [
@@ -212,6 +268,10 @@ class SaaSSubscriptionPortalController extends AppBaseController
                 $requestedId = Store::whereKey($storeId)->value('organization_id');
             }
         }
+        if (! $requestedId && $organizations->count() > 1) {
+            abort(422, 'Debe seleccionar una organización para administrar su suscripción.');
+        }
+
         $organization = $requestedId
             ? $organizations->firstWhere('id', (int) $requestedId)
             : $organizations->first();

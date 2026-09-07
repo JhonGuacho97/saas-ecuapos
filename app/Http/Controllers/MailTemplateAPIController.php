@@ -22,8 +22,10 @@ class MailTemplateAPIController extends AppBaseController
     public function index(Request $request): MailCollection
     {
         $perPage = getPageSize($request);
+        $storeId = $this->requireCurrentStoreId();
+        $this->ensureStoreTemplates($storeId);
 
-        $mailTemplates = $this->mailRepository;
+        $mailTemplates = $this->mailRepository->where('store_id', $storeId);
 
         $mailTemplates = $mailTemplates->paginate($perPage);
 
@@ -63,6 +65,7 @@ class MailTemplateAPIController extends AppBaseController
 
     public function edit(MailTemplate $mailTemplate): MailResource
     {
+        $this->authorizeStoreOwnership($mailTemplate);
         return new MailResource($mailTemplate);
     }
 
@@ -70,14 +73,14 @@ class MailTemplateAPIController extends AppBaseController
     {
         $input = $request->all();
 
-        $mailTemplate = $this->mailRepository->updateMailTemplate($input, $id);
+        $mailTemplate = $this->mailRepository->updateMailTemplate($input, $id, $this->requireCurrentStoreId());
 
         return new MailResource($mailTemplate);
     }
 
     public function changeActiveStatus($id): MailResource
     {
-        $mailTemplate = MailTemplate::findOrFail($id);
+        $mailTemplate = MailTemplate::where('store_id', $this->requireCurrentStoreId())->findOrFail($id);
         $status = ! $mailTemplate->status;
         $mailTemplate->update(['status' => $status]);
 
@@ -92,5 +95,20 @@ class MailTemplateAPIController extends AppBaseController
     public function destroy(int $id)
     {
         //
+    }
+
+    private function ensureStoreTemplates(int $storeId): void
+    {
+        MailTemplate::whereNull('store_id')->get()->each(function (MailTemplate $template) use ($storeId) {
+            MailTemplate::firstOrCreate(
+                ['store_id' => $storeId, 'type' => $template->type],
+                [
+                    'template_name' => $template->template_name,
+                    'subject' => $template->subject,
+                    'content' => $template->content,
+                    'status' => $template->status,
+                ]
+            );
+        });
     }
 }

@@ -63,6 +63,7 @@ class UserAPIController extends AppBaseController
     public function show($id): UserResource
     {
         $user = $this->userRepository->find($id);
+        $this->authorizeUserAccess($user);
 
         return new UserResource($user);
     }
@@ -72,6 +73,7 @@ class UserAPIController extends AppBaseController
      */
     public function update(UpdateUserRequest $request, User $user)
     {
+        $this->authorizeUserAccess($user);
         if (Auth::id() == $user->id) {
             return $this->sendError('User can\'t be updated.');
         }
@@ -83,6 +85,7 @@ class UserAPIController extends AppBaseController
 
     public function destroy(User $user): JsonResponse
     {
+        $this->authorizeUserAccess($user);
         if (Auth::id() == $user->id) {
             return $this->sendError('User can\'t be deleted.');
         }
@@ -131,6 +134,7 @@ class UserAPIController extends AppBaseController
 
     public function updateUserPassword(AdminUpdateUserPasswordRequest $request, User $user): JsonResponse
     {
+        $this->authorizeUserAccess($user);
         // Solo un admin puede resetear la contraseña de otro admin --
         // evita que un usuario con permiso manage_users (pero sin ser
         // admin) tome control de una cuenta admin restableciendo su clave.
@@ -141,6 +145,18 @@ class UserAPIController extends AppBaseController
         $this->userRepository->updateUserPassword($user->id, $request->password);
 
         return $this->sendSuccess('Contraseña Actualizada Correctamente');
+    }
+
+    /**
+     * La administración de usuarios es por tienda. Los IDs de users son
+     * globales, por lo que el route binding por sí solo no constituye una
+     * autorización tenant-aware.
+     */
+    private function authorizeUserAccess(User $user): void
+    {
+        if ($user->is_super_admin || ! $user->stores()->whereKey($this->requireCurrentStoreId())->exists()) {
+            throw new AccessDeniedHttpException('No tiene permiso para acceder a este usuario.');
+        }
     }
 
     public function config(Request $request)
