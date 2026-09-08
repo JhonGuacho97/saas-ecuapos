@@ -16,6 +16,13 @@ class SaaSOnboardingTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_saas_configuration_exposes_the_self_registration_switch(): void
+    {
+        $saasConfig = require config_path('saas.php');
+
+        $this->assertArrayHasKey('self_registration_enabled', $saasConfig);
+    }
+
     public function test_owner_can_create_a_complete_operational_tenant(): void
     {
         config(['saas.self_registration_enabled' => true]);
