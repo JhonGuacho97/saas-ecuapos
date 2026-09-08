@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CatalogSetting extends BaseModel
 {
+    use BelongsToStore;
+
     protected $fillable = [
         'store_id', 'warehouse_id', 'is_enabled', 'whatsapp_number',
         'headline', 'description', 'show_stock', 'allow_pickup',

@@ -13,6 +13,13 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('saas:reconcile-subscriptions')->hourly()->withoutOverlapping();
+
+        // Los tokens de Sanctum se emiten con vencimiento a 2 horas
+        // (ver AuthController::login), pero Laravel no borra solo las
+        // filas vencidas: sin esto, personal_access_tokens crece sin
+        // techo con credenciales muertas -- ruido inútil en cualquier
+        // respaldo de la base y en una auditoría.
+        $schedule->command('sanctum:prune-expired --hours=24')->daily();
     }
 
     /**

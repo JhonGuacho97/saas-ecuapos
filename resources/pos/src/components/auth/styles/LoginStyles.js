@@ -389,6 +389,13 @@ export const loginStyles = `
 @media (prefers-reduced-motion: reduce) {
   .lp-spinner { animation: none; }
 }
+    .lp-two-factor-help {
+        display: block;
+        color: #64748b;
+        font-size: 11px;
+        margin-top: 6px;
+        line-height: 1.5;
+    }
 `;
 
 export const onboardingStyles = `${loginStyles}

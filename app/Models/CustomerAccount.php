@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
+
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class CustomerAccount extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, BelongsToStore;
 
     protected $fillable = [
         'store_id',

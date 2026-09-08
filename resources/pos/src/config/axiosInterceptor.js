@@ -91,7 +91,11 @@ export default {
                 // casos navegar al dashboard desmontaba el modal y dejaba
                 // una pantalla en blanco. El request puede pedir conservar
                 // la ubicación y mostrar su propio mensaje de error.
-                if (!error.config?.skipGlobalErrorRedirect) {
+                // El token limitado de primer acceso es válido, pero solo
+                // permite configurar 2FA. No se debe sacar al usuario del
+                // panel: SuperAdminLayout mostrará el flujo obligatorio.
+                const isTwoFactorSetupRequired = error.response.data?.restriction === 'two_factor_setup_required';
+                if (!error.config?.skipGlobalErrorRedirect && !isTwoFactorSetupRequired) {
                     window.location.href = environment.URL + '/sistema#' + '/app/dashboard';
                 }
                 return Promise.reject({...error});

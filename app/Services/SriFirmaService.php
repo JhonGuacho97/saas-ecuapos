@@ -23,11 +23,12 @@ class SriFirmaService
     private function cargarCertificado(?int $storeId): void
     {
         $config = SriConfigService::get($storeId);
-        // El certificado se guarda vía Storage::disk('local') en
-        // SriConfigController (storage/app/certificados/...), así que aquí
-        // debemos resolver la misma ruta en vez de public_path('uploads/...'),
-        // que apuntaba a un lugar donde el archivo nunca existe.
-        $this->certificadoPath = \Illuminate\Support\Facades\Storage::disk('local')->path($config['certificado_path']);
+        // Misma ruta donde lo dejó SriConfigController: el disco privado
+        // (storage/app/private), fuera del docroot. Ver
+        // SriConfigController::CERT_DISK.
+        $this->certificadoPath = \Illuminate\Support\Facades\Storage::disk(
+            \App\Http\Controllers\API\SriConfigController::CERT_DISK
+        )->path($config['certificado_path']);
         $this->certificadoClave = $config['certificado_clave'];
     }
 

@@ -1,11 +1,13 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
+import { faAngleUp, faRightFromBracket, faShieldHalved, faUser } from '@fortawesome/free-solid-svg-icons';
 import apiConfig from '../../../config/apiConfig';
 import { Tokens } from '../../../constants';
 import { getSuperAdminPageTitle, SUPER_ADMIN_BASE_PATH, superAdminNavigation } from '../config/navigation';
 import SuperAdminNotice from './SuperAdminNotice';
+import TwoFactorModal from '../security/TwoFactorModal';
+import api from '../api/superAdminApi';
 
 export default function SuperAdminLayout({ children, notice, setNotice }) {
     const navigate = useNavigate();
@@ -13,6 +15,31 @@ export default function SuperAdminLayout({ children, notice, setNotice }) {
     const user = JSON.parse(localStorage.getItem('loginUserArray') || '{}');
     const title = getSuperAdminPageTitle(location.pathname);
     const closeNotice = useCallback(() => setNotice(null), [setNotice]);
+    const profileRef = useRef(null);
+    const [profileOpen, setProfileOpen] = useState(false);
+    const [securityStatus, setSecurityStatus] = useState(null);
+    const [securityError, setSecurityError] = useState('');
+    const [securityModalOpen, setSecurityModalOpen] = useState(false);
+
+    const loadSecurityStatus = useCallback(() => {
+        setSecurityError('');
+        api.get('security/two-factor')
+            .then(status => {
+                setSecurityStatus(status);
+                if (!status.enabled) setSecurityModalOpen(true);
+            })
+            .catch(error => setSecurityError(error.response?.data?.message || 'No se pudo verificar la seguridad de la cuenta.'));
+    }, []);
+
+    useEffect(loadSecurityStatus, [loadSecurityStatus]);
+
+    useEffect(() => {
+        const closeProfile = event => {
+            if (profileRef.current && !profileRef.current.contains(event.target)) setProfileOpen(false);
+        };
+        document.addEventListener('mousedown', closeProfile);
+        return () => document.removeEventListener('mousedown', closeProfile);
+    }, []);
 
     const logout = async () => {
         try { await apiConfig.post('logout'); } catch (_) {}
@@ -38,11 +65,20 @@ export default function SuperAdminLayout({ children, notice, setNotice }) {
                     <span>{item.label}</span>
                 </NavLink>)}
             </nav>
-            <div className="sa-sidebar-foot">
-                <div className="sa-avatar">{(user.first_name || 'S').charAt(0)}</div>
-                <div><strong>{user.first_name || 'Super Admin'}</strong><small>Control global</small></div>
-                <button type="button" onClick={logout} title="Cerrar sesión" aria-label="Cerrar sesión">
-                    <FontAwesomeIcon icon={faRightFromBracket} />
+            <div className="sa-profile" ref={profileRef}>
+                {profileOpen && <div className="sa-profile-menu">
+                    <div><strong>{user.first_name || 'Super Admin'} {user.last_name || ''}</strong><small>{user.email || 'Control global'}</small></div>
+                    <button type="button" onClick={() => { setSecurityModalOpen(true); setProfileOpen(false); }}>
+                        <FontAwesomeIcon icon={faShieldHalved} /> Autenticación de dos factores
+                    </button>
+                    <button type="button" onClick={logout} className="is-logout">
+                        <FontAwesomeIcon icon={faRightFromBracket} /> Cerrar sesión
+                    </button>
+                </div>}
+                <button type="button" className="sa-sidebar-foot" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen}>
+                    <div className="sa-avatar">{(user.first_name || 'S').charAt(0)}</div>
+                    <div><strong>{user.first_name || 'Super Admin'}</strong><small>Perfil y seguridad</small></div>
+                    <FontAwesomeIcon icon={profileOpen ? faAngleUp : faUser} />
                 </button>
             </div>
         </aside>
@@ -52,7 +88,28 @@ export default function SuperAdminLayout({ children, notice, setNotice }) {
                 <div className="sa-topbar-badge"><span /> Operación en línea</div>
             </header>
             <SuperAdminNotice notice={notice} onClose={closeNotice} />
-            <div className="sa-content">{children}</div>
+            <div className="sa-content">
+                {securityStatus?.enabled ? children : securityError ? <div className="sa-card sa-security-gate-error">
+                    <FontAwesomeIcon icon={faShieldHalved} />
+                    <h2>No pudimos verificar la seguridad de tu cuenta</h2>
+                    <p>{securityError}</p>
+                    <div>
+                        <button type="button" className="sa-btn sa-btn--primary" onClick={loadSecurityStatus}>Intentar nuevamente</button>
+                        <button type="button" className="sa-btn sa-btn--soft" onClick={logout}>Cerrar sesión</button>
+                    </div>
+                </div> : <div className="sa-loading sa-security-gate"><span /> Verificando acceso seguro…</div>}
+            </div>
         </main>
+        <TwoFactorModal
+            show={securityModalOpen}
+            required={securityStatus !== null && !securityStatus.enabled}
+            status={securityStatus}
+            onClose={() => setSecurityModalOpen(false)}
+            onStatusChange={status => {
+                setSecurityStatus(status);
+                if (!status.enabled) setSecurityModalOpen(true);
+            }}
+            setNotice={setNotice}
+        />
     </div>;
 }

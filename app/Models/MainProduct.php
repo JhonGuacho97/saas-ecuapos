@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
+
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,7 +44,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  */
 class MainProduct extends Model implements HasMedia, JsonResourceful
 {
-    use HasFactory, HasJsonResourcefulData, InteractsWithMedia;
+    use HasFactory, HasJsonResourcefulData, InteractsWithMedia, BelongsToStore;
 
     protected $fillable = [
         'store_id',

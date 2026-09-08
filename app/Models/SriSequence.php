@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SriSequence extends BaseModel
 {
+    use BelongsToStore;
+
     protected $fillable = [
         'store_id',
         'ambiente',

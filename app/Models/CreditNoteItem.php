@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStoreThroughParent;
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,9 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CreditNoteItem extends BaseModel implements JsonResourceful
 {
-    use HasFactory, HasJsonResourcefulData;
+    use BelongsToStoreThroughParent, HasFactory, HasJsonResourcefulData;
 
     protected $table = 'credit_note_items';
+
+    protected function storeParentRelationName(): string
+    {
+        return 'creditNote';
+    }
 
     public const JSON_API_TYPE = 'credit_note_items';
 

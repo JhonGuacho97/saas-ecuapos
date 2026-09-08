@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CatalogOrder extends BaseModel
 {
+    use BelongsToStore;
+
     public const PENDING = 'pending';
     public const CONFIRMED = 'confirmed';
     public const PREPARING = 'preparing';

@@ -11,9 +11,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 
 class SriConfigController extends AppBaseController
 {
+    /**
+     * El .p12 es la firma electrónica legal del negocio. Vivía en el disco
+     * 'local', cuyo root es public_path('uploads') -- es decir, dentro del
+     * docroot y descargable por HTTP sin autenticación. Va al disco privado
+     * (storage/app/private), el mismo que usan los comprobantes de pago.
+     *
+     * Si algún día se cambia este disco, hay que mover también los archivos
+     * ya subidos: ver la migración
+     * 2026_09_08_110000_move_sri_private_files_out_of_the_webroot.
+     */
+    public const CERT_DISK = 'saas_private';
+
     public function __construct(
         protected SriService $sriService,
         protected SriSequenceService $sequenceService
@@ -268,13 +281,15 @@ class SriConfigController extends AppBaseController
         // huérfano el certificado de otra tienda).
         $rutaAnterior = $this->scopedSettingValue('sri_certificado_path');
 
-        if ($rutaAnterior && Storage::disk('local')->exists($rutaAnterior)) {
-            Storage::disk('local')->delete($rutaAnterior);
+        if ($rutaAnterior && Storage::disk(self::CERT_DISK)->exists($rutaAnterior)) {
+            Storage::disk(self::CERT_DISK)->delete($rutaAnterior);
         }
 
-        // Guardar nuevo certificado
-        $nombreArchivo = 'certificados/' . uniqid('cert_') . '.p12';
-        Storage::disk('local')->put($nombreArchivo, $certData);
+        // Nombre aleatorio, no uniqid(): uniqid() es la marca de tiempo en
+        // hexadecimal, o sea adivinable para quien sepa aproximadamente
+        // cuándo se subió el certificado. Str::random(40) no se enumera.
+        $nombreArchivo = 'certificados/cert_'.Str::random(40).'.p12';
+        Storage::disk(self::CERT_DISK)->put($nombreArchivo, $certData);
 
         // Extraer datos
         $ruc = $this->extraerRuc($certInfo);
@@ -512,7 +527,7 @@ class SriConfigController extends AppBaseController
         $certClaveRaw = $this->scopedSettingValue('sri_certificado_clave');
         $certClave = $certClaveRaw ? Crypt::decryptString($certClaveRaw) : null;
 
-        if (!$certPath || !Storage::disk('local')->exists($certPath)) {
+        if (!$certPath || !Storage::disk(self::CERT_DISK)->exists($certPath)) {
             return response()->json([
                 'success' => false,
                 'message' => 'No hay certificado configurado.',
@@ -546,7 +561,7 @@ class SriConfigController extends AppBaseController
         string $certPath,
         ?string $certClave = null
     ): array {
-        $fullPath = Storage::disk('local')->path($certPath);
+        $fullPath = Storage::disk(self::CERT_DISK)->path($certPath);
 
         if (!file_exists($fullPath)) {
             return ['valido' => false, 'mensaje' => 'Archivo no encontrado'];

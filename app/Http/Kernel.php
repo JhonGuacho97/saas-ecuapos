@@ -70,6 +70,7 @@ class Kernel extends HttpKernel
         'store.context' => \App\Http\Middleware\ResolveActiveStore::class,
         'subscription.active' => \App\Http\Middleware\EnsureActiveSubscription::class,
         'super.admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+        'super.admin.2fa' => \App\Http\Middleware\EnsureSuperAdminTwoFactor::class,
         'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
     ];
 }
