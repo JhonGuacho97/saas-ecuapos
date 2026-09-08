@@ -1,7 +1,7 @@
 # A paginator that plays nice with the JSON API spec
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/spatie/laravel-json-api-paginate.svg?style=flat-square)](https://packagist.org/packages/spatie/laravel-json-api-paginate)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/spatie/laravel-json-api-paginate/run-tests?label=tests)
+[![Check & fix styling](https://github.com/spatie/laravel-json-api-paginate/actions/workflows/php-cs-fixer.yml/badge.svg)](https://github.com/spatie/laravel-json-api-paginate/actions/workflows/php-cs-fixer.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/spatie/laravel-json-api-paginate.svg?style=flat-square)](https://packagist.org/packages/spatie/laravel-json-api-paginate)
 
 In a vanilla Laravel application [the query builder paginators will listen to `page` request parameter](https://laravel.com/docs/master/pagination#paginating-query-builder-results). This works great, but it does not follow the example solution of [the json:api spec](http://jsonapi.org/). That example [expects](http://jsonapi.org/examples/#pagination) the query builder paginator to listen to the `page[number]` and `page[size]` request parameters.
@@ -85,10 +85,16 @@ return [
     'use_simple_pagination' => false,
 
     /*
-     * If you want to cursor pagination, set this to true.
+     * If you want to use cursor pagination, set this to true.
      * This would override use_simple_pagination.
      */
     'use_cursor_pagination' => false,
+
+    /*
+     * use simpleFastPaginate() or fastPaginate from https://github.com/aarondfrancis/fast-paginate
+     * use may installed it via `composer require aaronfrancis/fast-paginate`
+     */
+    'use_fast_pagination' => false,
 
     /*
      * Here you can override the base url to be used in the link items.
@@ -125,12 +131,32 @@ $model = YourModel::find(1);
 $model->relation()->jsonPaginate();
 ```
 
+### Override default behavior
+
 By default the maximum page size is set to 30. You can change this number in the `config` file or just pass the value to  `jsonPaginate`.
 
 ```php
 $maxResults = 60;
 
 YourModel::jsonPaginate($maxResults);
+```
+
+By default the default page size is set to 30. You can change this number in the `config` file or just pass the value to  `jsonPaginate`.
+
+```php
+$defaultSize = 15;
+
+YourModel::jsonPaginate(null, $defaultSize);
+```
+
+You can also pass the total count to the `paginate` function directly. This can be useful for performance reasons or to prevent issues with `DISTINCT` keyword ([more info](https://github.com/laravel/framework/issues?q=is%3Aissue+paginate+total)).
+
+⚠️ This is effective only with basic pagination (no effect with cursor, simple or fast pagination)
+
+```php
+$total = 42;
+
+YourModel::jsonPaginate(null, null, $total);
 ```
 
 ### Cursor pagination

@@ -56,6 +56,8 @@ use Aws\AwsClient;
  * @method \GuzzleHttp\Promise\Promise getApprovalRuleTemplateAsync(array $args = [])
  * @method \Aws\Result getBlob(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getBlobAsync(array $args = [])
+ * @method \Aws\Result getBlobDifferences(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise getBlobDifferencesAsync(array $args = [])
  * @method \Aws\Result getBranch(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getBranchAsync(array $args = [])
  * @method \Aws\Result getComment(array $args = [])
@@ -160,6 +162,8 @@ use Aws\AwsClient;
  * @method \GuzzleHttp\Promise\Promise updatePullRequestTitleAsync(array $args = [])
  * @method \Aws\Result updateRepositoryDescription(array $args = [])
  * @method \GuzzleHttp\Promise\Promise updateRepositoryDescriptionAsync(array $args = [])
+ * @method \Aws\Result updateRepositoryEncryptionKey(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise updateRepositoryEncryptionKeyAsync(array $args = [])
  * @method \Aws\Result updateRepositoryName(array $args = [])
  * @method \GuzzleHttp\Promise\Promise updateRepositoryNameAsync(array $args = [])
  */

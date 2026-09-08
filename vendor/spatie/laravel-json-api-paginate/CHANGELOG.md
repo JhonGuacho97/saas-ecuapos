@@ -2,6 +2,74 @@
 
 All notable changes to `laravel-json-api-paginate` will be documented in this file
 
+## 1.16.2 - 2025-02-21
+
+### What's Changed
+
+* Laravel 12.x Compatibility by @laravel-shift in https://github.com/spatie/laravel-json-api-paginate/pull/83
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.16.1...1.16.2
+
+## 1.16.1 - 2024-12-23
+
+### What's Changed
+
+* Fix compatibility with Laravel < 11 by @sebj54 in https://github.com/spatie/laravel-json-api-paginate/pull/82
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.16.0...1.16.1
+
+## 1.16.0 - 2024-12-16
+
+### What's Changed
+
+* Add `$totalResults` parameter + update docs by @sebj54 in https://github.com/spatie/laravel-json-api-paginate/pull/79
+
+### New Contributors
+
+* @sebj54 made their first contribution in https://github.com/spatie/laravel-json-api-paginate/pull/79
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.15.1...1.16.0
+
+## 1.15.1 - 2024-08-06
+
+### What's Changed
+
+* fix fast paginate check installed, update readme for config by @lloricode in https://github.com/spatie/laravel-json-api-paginate/pull/78
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.15.0...1.15.1
+
+## 1.15.0 - 2024-08-05
+
+### What's Changed
+
+* Add support for fast paginate by @lloricode in https://github.com/spatie/laravel-json-api-paginate/pull/77
+
+### New Contributors
+
+* @lloricode made their first contribution in https://github.com/spatie/laravel-json-api-paginate/pull/77
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.14.0...1.15.0
+
+## 1.14.0 - 2024-02-28
+
+### What's Changed
+
+* Laravel 11.x Compatibility by @laravel-shift in https://github.com/spatie/laravel-json-api-paginate/pull/74
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.13.0...1.14.0
+
+## 1.13.0 - 2023-03-27
+
+### What's Changed
+
+- Add macros for BelongsToMany and HasManyThrough by @philipgunther in https://github.com/spatie/laravel-json-api-paginate/pull/65
+
+### New Contributors
+
+- @philipgunther made their first contribution in https://github.com/spatie/laravel-json-api-paginate/pull/65
+
+**Full Changelog**: https://github.com/spatie/laravel-json-api-paginate/compare/1.12.2...1.13.0
+
 ## 1.12.2 - 2023-01-25
 
 ### What's Changed
