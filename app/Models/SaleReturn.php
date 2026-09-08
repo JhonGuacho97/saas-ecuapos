@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
+use App\Models\Concerns\BelongsToStoreThroughWarehouse;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -63,7 +64,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  */
 class SaleReturn extends BaseModel implements HasMedia, JsonResourceful
 {
-    use HasFactory, InteractsWithMedia, HasJsonResourcefulData;
+    use HasFactory, InteractsWithMedia, HasJsonResourcefulData, BelongsToStoreThroughWarehouse;
 
     protected $table = 'sales_return';
 

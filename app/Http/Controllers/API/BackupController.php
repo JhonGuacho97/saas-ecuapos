@@ -35,17 +35,26 @@ class BackupController extends AppBaseController
 
             // Construir comando mysqldump
             // --no-tablespaces evita errores de permisos en hosting compartido
+            //
+            // La contraseña va por MYSQL_PWD y NO como --password=: los
+            // argumentos de un proceso son legibles con `ps aux` para
+            // cualquier usuario de la máquina mientras el dump corre.
             $command = sprintf(
-                'mysqldump --no-tablespaces --host=%s --port=%s --user=%s --password=%s %s > %s 2>&1',
+                'mysqldump --no-tablespaces --host=%s --port=%s --user=%s %s > %s 2>&1',
                 escapeshellarg($host),
                 escapeshellarg($port),
                 escapeshellarg($username),
-                escapeshellarg($password),
                 escapeshellarg($database),
                 escapeshellarg($filepath)
             );
 
-            exec($command, $output, $returnCode);
+            $previousPassword = getenv('MYSQL_PWD');
+            putenv('MYSQL_PWD='.$password);
+            try {
+                exec($command, $output, $returnCode);
+            } finally {
+                $previousPassword === false ? putenv('MYSQL_PWD') : putenv('MYSQL_PWD='.$previousPassword);
+            }
 
             if ($returnCode !== 0) {
                 // Intentar método alternativo via PDO si mysqldump falla

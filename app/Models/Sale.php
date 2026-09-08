@@ -6,6 +6,7 @@ use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use App\Models\User;
 use Eloquent;
+use App\Models\Concerns\BelongsToStoreThroughWarehouse;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -78,7 +79,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class Sale extends BaseModel implements HasMedia, JsonResourceful
 {
-    use HasFactory, InteractsWithMedia, HasJsonResourcefulData;
+    use HasFactory, InteractsWithMedia, HasJsonResourcefulData, BelongsToStoreThroughWarehouse;
 
     protected $table = 'sales';
 

@@ -8,6 +8,20 @@ use Illuminate\Support\Facades\Storage;
 
 class SriRideService
 {
+    /**
+     * Los RIDE llevan nombre y cédula del cliente, montos y RUC del
+     * emisor. Estaban en el disco 'local' (root public_path('uploads')),
+     * o sea servidos por HTTP en /uploads/rides/factura_<clave>.pdf: la
+     * clave de acceso es un número de 49 dígitos con estructura conocida
+     * (fecha + RUC + secuencial), así que un tercero con el RUC del
+     * negocio podía enumerarlas y bajarse su facturación completa.
+     *
+     * Nada del frontend enlaza estos archivos directo -- la descarga va
+     * por /api/electronic-invoices/{id}/ride, autenticada -- así que
+     * moverlos al disco privado no rompe ninguna ruta pública.
+     */
+    private const RIDE_DISK = 'saas_private';
+
     private const FORMAS_PAGO_TEXTO = [
         '01' => 'EFECTIVO',
         '15' => 'TRANSFERENCIA / COMPENSACIÓN',
@@ -51,13 +65,13 @@ class SriRideService
     {
         $pdfContent = $this->generarPdf($factura);
         $nombreArchivo = "rides/factura_{$factura->clave_acceso}.pdf";
-        Storage::disk('local')->put($nombreArchivo, $pdfContent);
+        Storage::disk(self::RIDE_DISK)->put($nombreArchivo, $pdfContent);
 
         // Ruta absoluta real, no la ruta relativa al disco -- para que
         // cualquiera que reciba esto (como el adjunto de un correo)
         // pueda usarla directo con file_exists()/attach() sin tener que
         // saber en qué disco de Storage vive.
-        return Storage::disk('local')->path($nombreArchivo);
+        return Storage::disk(self::RIDE_DISK)->path($nombreArchivo);
     }
 
     /**
@@ -106,9 +120,9 @@ class SriRideService
     {
         $pdfContent = $this->generarPdfNotaCredito($comprobante);
         $nombreArchivo = "rides/nota_credito_{$comprobante->clave_acceso}.pdf";
-        Storage::disk('local')->put($nombreArchivo, $pdfContent);
+        Storage::disk(self::RIDE_DISK)->put($nombreArchivo, $pdfContent);
 
-        return Storage::disk('local')->path($nombreArchivo);
+        return Storage::disk(self::RIDE_DISK)->path($nombreArchivo);
     }
 
     /**

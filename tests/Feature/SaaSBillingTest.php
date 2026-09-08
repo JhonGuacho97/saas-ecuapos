@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\SaaS\BillingService;
 use App\Services\SaaS\RecurringPaymentGateway;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Crypt;
 use Tests\TestCase;
 use Laravel\Sanctum\Sanctum;
 
@@ -87,7 +88,11 @@ class SaaSBillingTest extends TestCase
             'password' => bcrypt('secret123'),
             'language' => 'sp',
         ]);
-        $user->forceFill(['is_super_admin' => true])->save();
+        $user->forceFill([
+            'is_super_admin' => true,
+            'two_factor_secret' => Crypt::encryptString('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'),
+            'two_factor_confirmed_at' => now(),
+        ])->save();
         Sanctum::actingAs($user, ['*']);
 
         $this->getJson('/api/super-admin/dashboard')

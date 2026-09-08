@@ -2,6 +2,7 @@
 
 namespace Spatie\JsonApiPaginate;
 
+use Composer\InstalledVersions;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -29,7 +30,7 @@ class JsonApiPaginateServiceProvider extends ServiceProvider
 
     protected function registerMacro()
     {
-        $macro = function (int $maxResults = null, int $defaultSize = null) {
+        $macro = function (?int $maxResults = null, ?int $defaultSize = null, ?int $totalResults = null) {
             $maxResults = $maxResults ?? config('json-api-paginate.max_results');
             $defaultSize = $defaultSize ?? config('json-api-paginate.default_size');
             $numberParameter = config('json-api-paginate.number_parameter');
@@ -38,7 +39,15 @@ class JsonApiPaginateServiceProvider extends ServiceProvider
             $paginationParameter = config('json-api-paginate.pagination_parameter');
             $paginationMethod = config('json-api-paginate.use_cursor_pagination')
                 ? 'cursorPaginate'
-                : (config('json-api-paginate.use_simple_pagination') ? 'simplePaginate' : 'paginate');
+                : (
+                    config('json-api-paginate.use_simple_pagination')
+                        ? (config('json-api-paginate.use_fast_pagination') ? 'simpleFastPaginate' : 'simplePaginate')
+                        : (config('json-api-paginate.use_fast_pagination') ? 'fastPaginate' : 'paginate')
+                );
+
+            if (config('json-api-paginate.use_fast_pagination') && ! (InstalledVersions::isInstalled('hammerstone/fast-paginate') || InstalledVersions::isInstalled('aaronfrancis/fast-paginate'))) {
+                abort(500, 'You need to install hammerstone/fast-paginate to use fast pagination.');
+            }
 
             $size = (int) request()->input($paginationParameter.'.'.$sizeParameter, $defaultSize);
             $cursor = (string) request()->input($paginationParameter.'.'.$cursorParameter);
@@ -51,13 +60,19 @@ class JsonApiPaginateServiceProvider extends ServiceProvider
                 $size = $maxResults;
             }
 
-            $paginator = $paginationMethod === 'cursorPaginate'
-                ? $this->{$paginationMethod}($size, ['*'], $paginationParameter.'['.$cursorParameter.']', $cursor)
-                    ->appends(Arr::except(request()->input(), $paginationParameter.'.'.$cursorParameter))
-                : $this
-                    ->{$paginationMethod}($size, ['*'], $paginationParameter.'.'.$numberParameter)
-                    ->setPageName($paginationParameter.'['.$numberParameter.']')
+            if ($paginationMethod === 'cursorPaginate') {
+                $paginator = $this->{$paginationMethod}($size, ['*'], $paginationParameter.'['.$cursorParameter.']', $cursor)
+                    ->appends(Arr::except(request()->input(), $paginationParameter.'.'.$cursorParameter));
+            } else {
+                if (version_compare(app()->version(), '11.0.0') >= 0) {
+                    $paginator = $this->{$paginationMethod}($size, ['*'], $paginationParameter.'.'.$numberParameter, null, $totalResults);
+                } else {
+                    $paginator = $this->{$paginationMethod}($size, ['*'], $paginationParameter.'.'.$numberParameter);
+                }
+
+                $paginator->setPageName($paginationParameter.'['.$numberParameter.']')
                     ->appends(Arr::except(request()->input(), $paginationParameter.'.'.$numberParameter));
+            }
 
             if (! is_null(config('json-api-paginate.base_url'))) {
                 $paginator->setPath(config('json-api-paginate.base_url'));

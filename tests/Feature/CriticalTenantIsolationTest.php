@@ -13,6 +13,7 @@ use App\Models\SmsSetting;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -296,7 +297,11 @@ class CriticalTenantIsolationTest extends TestCase
             'password' => Hash::make('secret123'),
             'language' => 'sp',
         ]);
-        $superAdmin->forceFill(['is_super_admin' => true])->save();
+        $superAdmin->forceFill([
+            'is_super_admin' => true,
+            'two_factor_secret' => Crypt::encryptString('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'),
+            'two_factor_confirmed_at' => now(),
+        ])->save();
         Sanctum::actingAs($superAdmin, ['*']);
 
         $response = $this->get("/api/super-admin/payments/{$payment->id}/proof");

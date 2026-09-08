@@ -10,7 +10,6 @@ import { downloadDatabaseBackup } from './backupApi';
 
 export default function PlatformSettings({ setNotice }) {
     const [downloading, setDownloading] = useState(false);
-
     const downloadBackup = async () => {
         if (downloading) return;
         setDownloading(true);

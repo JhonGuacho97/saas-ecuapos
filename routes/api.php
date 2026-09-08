@@ -44,6 +44,7 @@ use App\Http\Controllers\API\StoreAPIController;
 use App\Http\Controllers\API\OrganizationAPIController;
 use App\Http\Controllers\API\SaaSOnboardingController;
 use App\Http\Controllers\API\SaaSSuperAdminController;
+use App\Http\Controllers\API\SuperAdminSecurityController;
 use App\Http\Controllers\API\SaaSSubscriptionPortalController;
 use App\Http\Controllers\API\LandingPageSettingController;
 use App\Http\Controllers\API\CatalogSettingAPIController;
@@ -85,6 +86,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class);
 
 Route::middleware(['auth:sanctum', 'super.admin'])->prefix('super-admin')->group(function () {
+    Route::get('security/two-factor', [SuperAdminSecurityController::class, 'status']);
+    Route::post('security/two-factor/setup', [SuperAdminSecurityController::class, 'setup']);
+    Route::post('security/two-factor/confirm', [SuperAdminSecurityController::class, 'confirm']);
+    Route::delete('security/two-factor', [SuperAdminSecurityController::class, 'disable']);
+});
+
+Route::middleware(['auth:sanctum', 'super.admin', 'super.admin.2fa'])->prefix('super-admin')->group(function () {
     Route::get('backup/download', [BackupController::class, 'download']);
     Route::get('cache-clear', [SettingAPIController::class, 'clearCache']);
     Route::resource('currencies', CurrencyAPIController::class)->except(['index'])->names([
@@ -785,7 +793,8 @@ Route::post(
     '/forgot-password',
     [AuthController::class, 'sendPasswordResetLinkEmail']
 )->middleware('throttle:5,1')->name('password.email');
-Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])
+    ->middleware('throttle:5,1')->name('password.reset');
 
 // SIN auth:sanctum a propósito -- se usa en la pantalla de Login antes
 // de tener sesión (ver Login.js) -- pero el sidebar YA autenticado

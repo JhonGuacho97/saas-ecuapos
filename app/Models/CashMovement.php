@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CashMovement extends BaseModel
 {
+    use BelongsToStore;
+
     public const IN = 'IN';
     public const OUT = 'OUT';
     public const OPENING = 'OPENING';

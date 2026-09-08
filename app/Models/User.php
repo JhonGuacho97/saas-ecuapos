@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Contracts\JsonResourceful;
 use App\Notifications\ResetPasswordNotification;
 use App\Traits\HasJsonResourcefulData;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -126,6 +127,11 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
     protected $hidden = [
         'password',
         'remember_token',
+        'failed_login_attempts',
+        'locked_until',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_last_used_step',
     ];
 
     /**
@@ -136,7 +142,28 @@ class User extends Authenticatable implements HasMedia, JsonResourceful, CanRese
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_super_admin' => 'boolean',
+        'locked_until' => 'datetime',
+        'two_factor_confirmed_at' => 'datetime',
     ];
+
+    public function twoFactorEnabled(): bool
+    {
+        return $this->is_super_admin
+            && $this->two_factor_secret !== null
+            && $this->two_factor_confirmed_at !== null;
+    }
+
+    public function twoFactorSecret(): ?string
+    {
+        return $this->two_factor_secret ? Crypt::decryptString($this->two_factor_secret) : null;
+    }
+
+    public function recoveryCodeHashes(): array
+    {
+        return $this->two_factor_recovery_codes
+            ? json_decode(Crypt::decryptString($this->two_factor_recovery_codes), true) ?? []
+            : [];
+    }
 
     public function prepareLinks(): array
     {

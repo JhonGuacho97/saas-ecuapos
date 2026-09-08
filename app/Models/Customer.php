@@ -3,6 +3,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
+
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,7 +53,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Customer extends BaseModel
 {
-    use HasFactory, HasJsonResourcefulData;
+    use HasFactory, HasJsonResourcefulData, BelongsToStore;
 
     protected $table = 'customers';
 

@@ -34,7 +34,8 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [showPw, setShowPw] = useState(false);
 
-    const [loginInputs, setLoginInputs] = useState({ email: "", password: "" });
+    const [loginInputs, setLoginInputs] = useState({ email: "", password: "", two_factor_code: "" });
+    const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
     const [errors, setErrors] = useState({ email: "", password: "" });
 
     useEffect(() => {
@@ -63,6 +64,7 @@ const Login = () => {
         formData.append("email", loginInputs.email);
         formData.append("password", loginInputs.password);
         formData.append("language_code", localStorage.getItem("updated_language"));
+        if (requiresTwoFactor) formData.append("two_factor_code", loginInputs.two_factor_code);
         return formData;
     };
 
@@ -71,8 +73,12 @@ const Login = () => {
         const valid = handleValidation();
         if (valid) {
             setLoading(true);
-            dispatch(loginAction(prepareFormData(loginInputs), navigate, setLoading));
-            setLoginInputs({ email: "", password: "" });
+            dispatch(loginAction(
+                prepareFormData(loginInputs),
+                navigate,
+                setLoading,
+                () => setRequiresTwoFactor(true)
+            ));
         }
     };
 
@@ -119,6 +125,7 @@ const Login = () => {
                                     Autorizado SRI
                                 </span>
                             </div>
+
                             <div className="lp-seal-body">
                                 <div className="lp-seal-rows">
                                     <div className="lp-seal-row">
@@ -235,6 +242,30 @@ const Login = () => {
                                     <span className="lp-error-msg">{errors["password"]}</span>
                                 )}
                             </div>
+
+                            {requiresTwoFactor && (
+                                <div className="lp-field">
+                                    <div className="lp-field-header">
+                                        <label className="lp-label" htmlFor="lp-two-factor">Código de seguridad</label>
+                                    </div>
+                                    <div className="lp-input-wrap">
+                                        <input
+                                            id="lp-two-factor"
+                                            className="lp-input"
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            name="two_factor_code"
+                                            maxLength="11"
+                                            placeholder="Código de 6 dígitos o recuperación"
+                                            value={loginInputs.two_factor_code}
+                                            onChange={handleChange}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <span className="lp-two-factor-help">Abre tu aplicación de autenticación para completar el acceso.</span>
+                                </div>
+                            )}
 
                             {/* Submit */}
                             <button type="submit" className="lp-btn" disabled={loading}>

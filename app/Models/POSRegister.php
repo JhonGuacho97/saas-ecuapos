@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStoreThroughWarehouse;
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,7 +48,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class POSRegister extends BaseModel implements JsonResourceful
 {
-    use HasFactory, HasJsonResourcefulData;
+    use BelongsToStoreThroughWarehouse, HasFactory, HasJsonResourcefulData;
 
     protected $table = 'pos_register';
 

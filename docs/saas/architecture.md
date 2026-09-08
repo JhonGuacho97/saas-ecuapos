@@ -15,6 +15,12 @@ Spatie Permission y conserva su configuración de SRI, catálogo, inventario y
 caja. Este diseño permite vender un plan por empresa y ofrecer varias tiendas
 sin mezclar sus operaciones.
 
+El aislamiento entre tiendas, la decisión de usar una sola base de datos y los
+traits que la sostienen están documentados aparte en
+[`aislamiento-datos.md`](aislamiento-datos.md). La auditoría de seguridad, el
+endurecimiento aplicado y lo que queda pendiente, en
+[`seguridad.md`](seguridad.md).
+
 ## Reglas que no deben romperse
 
 1. Ningún `organization_id`, `store_id` o `warehouse_id` recibido del cliente
@@ -44,15 +50,18 @@ La migración inicial trata toda la base instalada como un solo cliente:
    contexto y aislamiento de tiendas. Implementada.
 2. **Onboarding:** registro del propietario, creación atómica de organización,
    tienda, almacén, configuración base y usuario administrador. Implementada.
-3. **Planes y límites:** catálogo de planes, funcionalidades habilitadas,
-   límites de usuarios/tiendas/almacenes y periodo de prueba. Implementada
-   para el plan de prueba y compatibilidad heredada.
+3. **Planes y límites:** catálogo de planes, límites de
+   usuarios/tiendas/almacenes/documentos y periodo de prueba. Implementada;
+   el bloqueo selectivo de módulos por `features` sigue pendiente.
 4. **Suscripción y cobros:** ciclo de suscripción, renovaciones, comprobantes,
-   gracia, suspensión y reactivación.
-5. **Panel de plataforma:** soporte interno, organizaciones, suscripciones,
-   salud operativa y acceso asistido auditable.
-6. **Operación SaaS:** colas, tareas programadas, backups, observabilidad,
-   auditoría y estrategia de despliegue sin interrupciones.
+   gracia, suspensión, cancelación y reactivación. Implementada para pagos
+   manuales y preparada para pasarelas automáticas.
+5. **Panel de plataforma:** organizaciones, usuarios, planes, suscripciones,
+   pagos, landing page, respaldo y seguridad del superadministrador.
+   Implementada.
+6. **Operación SaaS:** tareas programadas, backups, auditoría y seguridad
+   base implementadas. Observabilidad, colas permanentes y despliegue sin
+   interrupciones continúan como trabajo operativo.
 
 ## Onboarding implementado
 
@@ -98,5 +107,6 @@ una sola operación.
 
 Al terminar la prueba, la organización entra en modo de solo lectura: puede
 consultar sus datos, pero las peticiones que creen o modifiquen información
-responden con HTTP 402 y una causa estructurada. La fase de suscripciones y
-cobros será la encargada de convertirla a un plan activo.
+responden con HTTP 402 y una causa estructurada. Desde el portal de suscripción
+puede elegir un plan, cargar un comprobante y recuperar la operación cuando el
+superadministrador aprueba el pago.

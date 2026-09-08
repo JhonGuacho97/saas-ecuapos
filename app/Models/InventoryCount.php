@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryCount extends BaseModel
 {
+    use BelongsToStore;
+
     public const DRAFT = 'draft';
     public const COUNTING = 'counting';
     public const REVIEW = 'review';

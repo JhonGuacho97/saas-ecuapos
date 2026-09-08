@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStoreThroughParent;
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,9 +35,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class AdjustmentItem extends BaseModel implements JsonResourceful
 {
-    use HasFactory, HasJsonResourcefulData;
+    use BelongsToStoreThroughParent, HasFactory, HasJsonResourcefulData;
 
     protected $table = 'adjustment_items';
+
+    protected function storeParentRelationName(): string
+    {
+        return 'adjustment';
+    }
 
     public const JSON_API_TYPE = 'adjustment_items';
 

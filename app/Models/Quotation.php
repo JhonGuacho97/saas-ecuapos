@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
+use App\Models\Concerns\BelongsToStoreThroughWarehouse;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -58,7 +59,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Quotation extends BaseModel implements JsonResourceful
 {
-    use HasFactory, HasJsonResourcefulData;
+    use HasFactory, HasJsonResourcefulData, BelongsToStoreThroughWarehouse;
 
     public const JSON_API_TYPE = 'quotations';
 

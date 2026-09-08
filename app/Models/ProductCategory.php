@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
+
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,7 +37,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class ProductCategory extends BaseModel implements HasMedia, JsonResourceful
 {
-    use HasFactory, InteractsWithMedia, HasJsonResourcefulData;
+    use HasFactory, InteractsWithMedia, HasJsonResourcefulData, BelongsToStore;
 
     protected $table = 'product_categories';
 

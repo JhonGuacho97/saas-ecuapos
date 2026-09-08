@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -96,23 +97,15 @@ class AuthController extends AppBaseController
     {
         $request->validate(['email' => 'required|email']);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
-        $user = User::whereEmail($request->email)->first();
-        if (! $user) {
-            return $this->sendError('We can\'t find a user with that e-mail address.');
-        }
+        Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json(['success' => true, 'message' => __($status)], 200);
-        } else {
-            throw ValidationException::withMessages([
-                'email' => 'Please Wait Before Trying',
-            ]);
-        }
-
-        return $this->sendSuccess('Password Reset link sent successfully.');
+        // Respuesta idéntica exista o no el correo, para no convertir
+        // este endpoint en un oráculo de enumeración de usuarios. Mismo
+        // criterio que app/Http/Controllers/API/AuthController.
+        return response()->json([
+            'success' => true,
+            'message' => __('Si el correo está registrado, enviaremos un enlace para restablecer la contraseña.'),
+        ], 200);
     }
 
     public function resetPassword(Request $request): JsonResponse
@@ -120,7 +113,9 @@ class AuthController extends AppBaseController
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:6|confirmed',
+            // Misma política que la API web y que el alta -- ver
+            // app/Http/Controllers/API/AuthController::resetPassword().
+            'password' => ['required', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ]);
 
         $status = Password::reset(

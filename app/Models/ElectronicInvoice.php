@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Services\SriConfigService;
@@ -45,7 +47,7 @@ use App\Services\SriConfigService;
  */
 class ElectronicInvoice extends BaseModel
 {
-    use HasFactory;
+    use HasFactory, BelongsToStore;
 
     protected $table = 'electronic_invoices';
 

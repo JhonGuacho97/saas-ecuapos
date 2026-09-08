@@ -171,7 +171,8 @@ class OrganizationIsolationTest extends TestCase
             ->where('warehouse_id', $secondWarehouse->id)->whereNull('closed_at')->firstOrFail();
 
         $this->assertNotSame($firstSession->id, $secondSession->id);
-        $this->assertSame(2, POSRegister::where('user_id', $user->id)->whereNull('closed_at')->count());
+        $this->assertSame(2, POSRegister::acrossStores()
+            ->where('user_id', $user->id)->whereNull('closed_at')->count());
 
         $this->withHeader('X-Store-Id', $secondStore->id)
             ->postJson('/api/register-close', ['cash_in_hand_while_closing' => 0])

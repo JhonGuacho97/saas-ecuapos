@@ -14,10 +14,15 @@ const mapPermissionToRoute = (permission) => {
     return `/app/${entity}`;
 };
 
-export const loginAction = (user, navigate, setLoading) => async (dispatch) => {
+export const loginAction = (user, navigate, setLoading, onTwoFactorRequired) => async (dispatch) => {
     const previousLanguage = localStorage.getItem(Tokens.UPDATED_LANGUAGE);
     await apiConfig.post('login', user)
         .then(async (response) => {
+            if (response.data.data?.requires_two_factor) {
+                onTwoFactorRequired?.();
+                setLoading(false);
+                return;
+            }
             // La tienda activa de la sesión ANTERIOR (otro usuario, en el
             // mismo navegador) quedaba pegada en localStorage -- el
             // interceptor la sigue mandando como X-Store-Id en las
@@ -52,6 +57,10 @@ export const loginAction = (user, navigate, setLoading) => async (dispatch) => {
             const mappedRoutes = userPermissions.map(mapPermissionToRoute);
 
             if (response.data.data.is_super_admin) {
+                // El layout de superadministración resuelve primero el estado
+                // de 2FA y bloquea el montaje de cualquier módulo protegido.
+                // Así un token de configuración nunca dispara consultas del
+                // dashboard ni termina en una redirección global en blanco.
                 navigate('/app/super-admin/dashboard');
                 dispatch(addToast({ text: getFormattedMessage('login.success.message') }));
                 setLoading(false);

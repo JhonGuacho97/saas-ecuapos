@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SriSequenceAdjustment extends BaseModel
 {
+    use BelongsToStore;
+
     protected $fillable = [
         'sri_sequence_id',
         'store_id',

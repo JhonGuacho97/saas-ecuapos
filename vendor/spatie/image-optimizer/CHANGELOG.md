@@ -2,6 +2,101 @@
 
 All notable changes to `image-optimizer` will be documented in this file
 
+## 1.9.0 - 2026-06-25
+
+### What's Changed
+
+* Bump dependabot/fetch-metadata from 2.4.0 to 2.5.0 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/237
+* Bump dependabot/fetch-metadata from 2.5.0 to 3.0.0 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/238
+* Bump dependabot/fetch-metadata from 3.0.0 to 3.1.0 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/239
+* Add throws() to OptimizerChain for optimizer failure handling by @mathiasgrimm in https://github.com/spatie/image-optimizer/pull/241
+
+### New Contributors
+
+* @mathiasgrimm made their first contribution in https://github.com/spatie/image-optimizer/pull/241
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.8.1...1.9.0
+
+## 1.8.1 - 2025-11-26
+
+### What's Changed
+
+* Bump dependabot/fetch-metadata from 2.2.0 to 2.3.0 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/225
+* Bump dependabot/fetch-metadata from 2.3.0 to 2.4.0 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/226
+* Update issue template by @AlexVanderbist in https://github.com/spatie/image-optimizer/pull/230
+* Drop hard-coded `-i` option from Gifsicle by @paulrrogers in https://github.com/spatie/image-optimizer/pull/231
+* feat: add tests for PHP 8.5 by @Chris53897 in https://github.com/spatie/image-optimizer/pull/234
+* Bump actions/checkout from 4 to 6 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/236
+* Bump stefanzweifel/git-auto-commit-action from 5 to 7 by @dependabot[bot] in https://github.com/spatie/image-optimizer/pull/232
+* Added Symfony 8 support to all symfony/* packages. by @thecaliskan in https://github.com/spatie/image-optimizer/pull/235
+
+### New Contributors
+
+* @AlexVanderbist made their first contribution in https://github.com/spatie/image-optimizer/pull/230
+* @paulrrogers made their first contribution in https://github.com/spatie/image-optimizer/pull/231
+* @Chris53897 made their first contribution in https://github.com/spatie/image-optimizer/pull/234
+* @thecaliskan made their first contribution in https://github.com/spatie/image-optimizer/pull/235
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.8.0...1.8.1
+
+## 1.8.0 - 2024-11-04
+
+### What's Changed
+
+* Bump dependabot/fetch-metadata from 2.1.0 to 2.2.0 by @dependabot in https://github.com/spatie/image-optimizer/pull/221
+* PHP 8.4 tests by @erikn69 in https://github.com/spatie/image-optimizer/pull/224
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.7.5...1.8.0
+
+## 1.7.5 - 2024-05-16
+
+### What's Changed
+
+* Fix `quality` config parameter by @0xb4lint in https://github.com/spatie/image-optimizer/pull/219
+* Bump dependabot/fetch-metadata from 1.6.0 to 2.1.0 by @dependabot in https://github.com/spatie/image-optimizer/pull/215
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.7.4...1.7.5
+
+## 1.7.4 - 2024-05-06
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.7.3...1.7.4
+
+## 1.7.3 - 2024-05-03
+
+### What's Changed
+
+* Bump stefanzweifel/git-auto-commit-action from 4 to 5 by @dependabot in https://github.com/spatie/image-optimizer/pull/203
+* Fix OptimizerChainFactory's missing config processor by @0xb4lint in https://github.com/spatie/image-optimizer/pull/216
+* Fix the bug related to Deserialization of Untrusted Data by @Sonicrrrr in https://github.com/spatie/image-optimizer/pull/211
+
+### New Contributors
+
+* @Sonicrrrr made their first contribution in https://github.com/spatie/image-optimizer/pull/211
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.7.2...1.7.3
+
+## 1.7.2 - 2023-11-03
+
+### What's Changed
+
+- Bump actions/checkout from 3 to 4 by @dependabot in https://github.com/spatie/image-optimizer/pull/202
+- Add PHP 8.2 to the GitHub CI test matrix by @javiereguiluz in https://github.com/spatie/image-optimizer/pull/207
+- Allow using Symfony 7 packages by @javiereguiluz in https://github.com/spatie/image-optimizer/pull/206
+
+### New Contributors
+
+- @javiereguiluz made their first contribution in https://github.com/spatie/image-optimizer/pull/207
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.7.1...1.7.2
+
+## 1.7.1 - 2023-07-27
+
+### What's Changed
+
+- libavif version note by @0xb4lint in https://github.com/spatie/image-optimizer/pull/199
+
+**Full Changelog**: https://github.com/spatie/image-optimizer/compare/1.7.0...1.7.1
+
 ## 1.7.0 - 2023-07-22
 
 ### What's Changed

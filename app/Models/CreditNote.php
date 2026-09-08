@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use App\Models\Contracts\JsonResourceful;
 use App\Traits\HasJsonResourcefulData;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use RuntimeException;
 
 class CreditNote extends BaseModel implements JsonResourceful
 {
-    use HasFactory, HasJsonResourcefulData;
+    use BelongsToStore, HasFactory, HasJsonResourcefulData;
 
     public const JSON_API_TYPE = 'credit_notes';
 
@@ -59,6 +61,29 @@ class CreditNote extends BaseModel implements JsonResourceful
         'note',
         'reference_code',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (CreditNote $creditNote) {
+            $saleStoreId = $creditNote->sale_id
+                ? Sale::acrossStores()->whereKey($creditNote->sale_id)->value('store_id')
+                : null;
+
+            if ($saleStoreId === null) {
+                throw new RuntimeException('La nota de crédito no puede guardarse sin una venta que resuelva su tienda.');
+            }
+
+            if ($creditNote->store_id !== null && (int) $creditNote->store_id !== (int) $saleStoreId) {
+                throw new RuntimeException('La tienda de la nota de crédito no coincide con la venta original.');
+            }
+
+            if (currentStoreId() !== null && (int) currentStoreId() !== (int) $saleStoreId) {
+                throw new RuntimeException('La venta original no pertenece a la tienda activa.');
+            }
+
+            $creditNote->store_id = $saleStoreId;
+        });
+    }
 
     protected $casts = [
         'date' => 'date',

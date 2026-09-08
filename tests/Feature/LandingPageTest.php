@@ -6,6 +6,7 @@ use App\Models\LandingPageSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -97,7 +98,11 @@ class LandingPageTest extends TestCase
         ]);
 
         if ($superAdmin) {
-            $user->forceFill(['is_super_admin' => true])->save();
+            $user->forceFill([
+                'is_super_admin' => true,
+                'two_factor_secret' => Crypt::encryptString('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'),
+                'two_factor_confirmed_at' => now(),
+            ])->save();
         }
 
         return $user;
