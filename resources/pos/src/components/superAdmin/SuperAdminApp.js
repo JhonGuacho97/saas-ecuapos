@@ -24,7 +24,7 @@ export default function SuperAdminApp() {
         <Routes>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="organizations" element={<Organizations setNotice={setNotice} />} />
-            <Route path="users" element={<Users />} />
+            <Route path="users" element={<Users setNotice={setNotice} />} />
             <Route path="plans" element={<Plans setNotice={setNotice} />} />
             <Route path="subscriptions" element={<Subscriptions setNotice={setNotice} />} />
             <Route path="payments" element={<Payments setNotice={setNotice} />} />

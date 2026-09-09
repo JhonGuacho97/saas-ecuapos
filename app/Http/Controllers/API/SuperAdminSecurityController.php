@@ -8,7 +8,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class SuperAdminSecurityController extends AppBaseController
@@ -97,5 +99,32 @@ class SuperAdminSecurityController extends AppBaseController
         ])->save();
 
         return response()->json(['message' => 'Autenticación de dos factores desactivada.']);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'confirmed', 'different:current_password', Password::min(8)->letters()->numbers()],
+            'code' => ['required', 'string'],
+        ]);
+        $user = $request->user();
+
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages(['current_password' => 'La contraseña actual no es válida.']);
+        }
+        if (! $this->totp->verifyUserCode($user, $data['code'])) {
+            throw ValidationException::withMessages(['code' => 'El código de autenticación no es válido o ya fue utilizado.']);
+        }
+
+        $currentTokenId = $user->currentAccessToken()?->id;
+        $user->forceFill([
+            'password' => Hash::make($data['password']),
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $user->tokens()->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
+
+        return response()->json(['success' => true, 'message' => 'Contraseña actualizada. Las demás sesiones fueron cerradas.']);
     }
 }

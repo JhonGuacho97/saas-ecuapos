@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faAngleUp, faRightFromBracket, faShieldHalved, faUser } from '@fortawesome/free-solid-svg-icons';
+import { faAngleUp, faKey, faRightFromBracket, faShieldHalved, faUser } from '@fortawesome/free-solid-svg-icons';
 import apiConfig from '../../../config/apiConfig';
 import { Tokens } from '../../../constants';
 import { getSuperAdminPageTitle, SUPER_ADMIN_BASE_PATH, superAdminNavigation } from '../config/navigation';
 import SuperAdminNotice from './SuperAdminNotice';
 import TwoFactorModal from '../security/TwoFactorModal';
+import SuperAdminPasswordModal from '../security/SuperAdminPasswordModal';
 import api from '../api/superAdminApi';
 
 export default function SuperAdminLayout({ children, notice, setNotice }) {
@@ -20,6 +21,7 @@ export default function SuperAdminLayout({ children, notice, setNotice }) {
     const [securityStatus, setSecurityStatus] = useState(null);
     const [securityError, setSecurityError] = useState('');
     const [securityModalOpen, setSecurityModalOpen] = useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
     const loadSecurityStatus = useCallback(() => {
         setSecurityError('');
@@ -71,6 +73,9 @@ export default function SuperAdminLayout({ children, notice, setNotice }) {
                     <button type="button" onClick={() => { setSecurityModalOpen(true); setProfileOpen(false); }}>
                         <FontAwesomeIcon icon={faShieldHalved} /> Autenticación de dos factores
                     </button>
+                    <button type="button" onClick={() => { setPasswordModalOpen(true); setProfileOpen(false); }}>
+                        <FontAwesomeIcon icon={faKey} /> Cambiar contraseña
+                    </button>
                     <button type="button" onClick={logout} className="is-logout">
                         <FontAwesomeIcon icon={faRightFromBracket} /> Cerrar sesión
                     </button>
@@ -110,6 +115,14 @@ export default function SuperAdminLayout({ children, notice, setNotice }) {
                 if (!status.enabled) setSecurityModalOpen(true);
             }}
             setNotice={setNotice}
+        />
+        <SuperAdminPasswordModal
+            show={passwordModalOpen}
+            onClose={() => setPasswordModalOpen(false)}
+            onSaved={message => {
+                setPasswordModalOpen(false);
+                setNotice({ text: message || 'Contraseña actualizada correctamente.' });
+            }}
         />
     </div>;
 }

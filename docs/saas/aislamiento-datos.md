@@ -157,4 +157,14 @@ Incluye `CriticalTenantIsolationTest` y `OrganizationIsolationTest` sin tocar.
    refuerzan entre sí; quitar los segundos solo agregaría riesgo.
 
 La suite ampliada agrega tres casos para modelos hijo y stock directo. El total
-actual es **146 pruebas**.
+actual es **160 pruebas**.
+
+## Visibilidad deliberada del superadministrador
+
+El superadministrador puede consultar organizaciones y sus usuarios para
+soporte, pero el listado de `/api/super-admin/users` no equivale a un volcado de
+la tabla `users`: excluye cuentas con `is_super_admin = true` y filas sin una
+membresía en `organization_user`. Los endpoints individuales aplican la misma
+regla antes de devolver información o restablecer credenciales. Esta separación
+evita mezclar las identidades internas de la plataforma con las cuentas de los
+clientes SaaS.

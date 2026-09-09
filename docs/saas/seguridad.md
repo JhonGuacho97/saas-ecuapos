@@ -171,6 +171,21 @@ emite un token limitado que solo puede acceder a las rutas de configuración de
 el modal obligatorio, evitando redirecciones o pantallas en blanco. El resto
 del panel exige tanto 2FA activo como una capacidad administrativa completa.
 
+El cambio de contraseña del propio superadministrador exige tres pruebas en la
+misma operación: contraseña actual, confirmación de la nueva contraseña y un
+código TOTP fresco (no reutilizable). Después del cambio se renueva el
+`remember_token` y se eliminan las demás sesiones Sanctum.
+
+### Administración de usuarios de organizaciones
+
+El módulo global de usuarios no muestra cuentas internas de plataforma ni
+usuarios huérfanos: exige `is_super_admin = false` y una membresía real en
+`organization_user`. Los endpoints de detalle y recuperación repiten esa
+validación por ID, por lo que conocer el ID de un superadministrador no permite
+consultarlo ni cambiarle la contraseña desde esas rutas. Al restablecer la
+contraseña de un usuario de organización se eliminan todos sus tokens y se
+limpian bloqueos de acceso anteriores.
+
 ### Bloqueo temporal de cuenta
 
 Además del throttle por IP, diez contraseñas incorrectas bloquean la cuenta por
@@ -198,7 +213,7 @@ paquete sin mantenimiento en el camino de renderizado es deuda a plazo.
 
 ## Verificación
 
-`php artisan test` → **146 pasaron**, con la suite completa después de todos los
+`php artisan test` → **160 pasaron**, con la suite completa después de todos los
 cambios de aislamiento, autenticación y del `composer update`.
 
 `tests/Feature/SecurityHardeningTest.php` cubre las regresiones:

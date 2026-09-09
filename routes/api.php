@@ -115,11 +115,16 @@ Route::middleware(['auth:sanctum', 'super.admin', 'super.admin.2fa'])->prefix('s
     Route::post('languages/translation/{language}/update', [LanguageAPIController::class, 'updateTranslation']);
     Route::get('dashboard', [SaaSSuperAdminController::class, 'dashboard']);
     Route::get('organizations', [SaaSSuperAdminController::class, 'organizations']);
+    Route::get('organizations/{organization}', [SaaSSuperAdminController::class, 'showOrganization']);
     Route::patch('organizations/{organization}', [SaaSSuperAdminController::class, 'updateOrganization']);
     Route::get('users', [SaaSSuperAdminController::class, 'users']);
+    Route::get('users/{user}', [SaaSSuperAdminController::class, 'showUser']);
+    Route::patch('users/{user}/password', [SaaSSuperAdminController::class, 'updateUserPassword']);
+    Route::patch('security/password', [SuperAdminSecurityController::class, 'changePassword']);
     Route::get('plans', [SaaSSuperAdminController::class, 'plans']);
     Route::post('plans', [SaaSSuperAdminController::class, 'storePlan']);
     Route::put('plans/{plan}', [SaaSSuperAdminController::class, 'updatePlan']);
+    Route::delete('plans/{plan}', [SaaSSuperAdminController::class, 'destroyPlan']);
     Route::get('subscriptions', [SaaSSuperAdminController::class, 'subscriptions']);
     Route::post('organizations/{organization}/subscription', [SaaSSuperAdminController::class, 'assignPlan']);
     Route::patch('subscriptions/{subscription}', [SaaSSuperAdminController::class, 'updateSubscription']);

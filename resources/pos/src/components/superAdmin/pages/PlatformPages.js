@@ -11,11 +11,13 @@ import {
     faCreditCard,
     faLayerGroup,
     faEye,
+    faKey,
     faMagnifyingGlass,
     faPen,
     faPlus,
     faReceipt,
     faStore,
+    faTrashCan,
     faTriangleExclamation,
     faUsers,
     faXmark,
@@ -23,7 +25,10 @@ import {
 import apiConfig from "../../../config/apiConfig";
 import api from "../api/superAdminApi";
 import PaymentProofModal from "../payments/PaymentProofModal";
+import OrganizationDetailModal from "../organizations/OrganizationDetailModal";
 import OrganizationSuspensionModal from "../organizations/OrganizationSuspensionModal";
+import UserDetailModal from "../users/UserDetailModal";
+import UserPasswordModal from "../users/UserPasswordModal";
 import { formatDate as date, formatMoney as money, subscriptionStatusLabels as statusLabel } from "../utils/formatters";
 
 const IconBox = ({ icon, tone = "blue" }) => (
@@ -221,6 +226,7 @@ export function Organizations({ setNotice }) {
         [search, setSearch] = useState(""),
         [plans, setPlans] = useState([]),
         [selected, setSelected] = useState(null),
+        [detail, setDetail] = useState(null),
         [suspending, setSuspending] = useState(null),
         [page, setPage] = useState(1);
     const load = useCallback(
@@ -333,13 +339,14 @@ export function Organizations({ setNotice }) {
                                         </button>
                                     </td>
                                     <td>
-                                        <button
-                                            className="sa-btn sa-btn--soft"
-                                            onClick={() => setSelected(org)}
-                                        >
-                                            <FontAwesomeIcon icon={faPen} />{" "}
-                                            Gestionar
-                                        </button>
+                                        <div className="sa-actions">
+                                            <button className="sa-action-icon" type="button" title="Ver información" aria-label={`Ver información de ${org.name}`} onClick={() => setDetail(org)}>
+                                                <FontAwesomeIcon icon={faEye} />
+                                            </button>
+                                            <button className="sa-btn sa-btn--soft" type="button" onClick={() => setSelected(org)}>
+                                                <FontAwesomeIcon icon={faPen} /> Gestionar
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -348,6 +355,7 @@ export function Organizations({ setNotice }) {
                 </div>
             )}
             <Pagination meta={result} onPage={setPage} />
+            {detail && <OrganizationDetailModal organization={detail} onClose={() => setDetail(null)} />}
             {selected && (
                 <AssignPlanModal
                     organization={selected}
@@ -368,9 +376,11 @@ export function Organizations({ setNotice }) {
         </section>
     );
 }
-export function Users() {
+export function Users({ setNotice }) {
     const [result, setResult] = useState(null),
         [search, setSearch] = useState(""),
+        [detail, setDetail] = useState(null),
+        [passwordUser, setPasswordUser] = useState(null),
         [page, setPage] = useState(1);
     useEffect(() => {
         const timer = setTimeout(
@@ -384,8 +394,8 @@ export function Users() {
             <div className="sa-card-head">
                 <div>
                     <span className="sa-eyebrow">ACCESOS</span>
-                    <h2>Usuarios de la plataforma</h2>
-                    <p>Lectura global para soporte y control de adopción.</p>
+                    <h2>Usuarios de organizaciones</h2>
+                    <p>Consulta y recupera el acceso de las cuentas creadas por tus clientes.</p>
                 </div>
             </div>
             <Toolbar
@@ -405,6 +415,7 @@ export function Users() {
                                 <th>Idioma</th>
                                 <th>Estado</th>
                                 <th>Registro</th>
+                                <th />
                             </tr>
                         </thead>
                         <tbody>
@@ -440,6 +451,12 @@ export function Users() {
                                         />
                                     </td>
                                     <td>{date(user.created_at)}</td>
+                                    <td>
+                                        <div className="sa-actions">
+                                            <button className="sa-action-icon" type="button" title="Ver información" aria-label={`Ver información de ${user.first_name}`} onClick={() => setDetail(user)}><FontAwesomeIcon icon={faEye} /></button>
+                                            <button className="sa-action-icon sa-action-icon--key" type="button" title="Cambiar contraseña" aria-label={`Cambiar contraseña de ${user.first_name}`} onClick={() => setPasswordUser(user)}><FontAwesomeIcon icon={faKey} /></button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -447,6 +464,8 @@ export function Users() {
                 </div>
             )}
             <Pagination meta={result} onPage={setPage} />
+            {detail && <UserDetailModal user={detail} onClose={() => setDetail(null)} onResetPassword={user => { setDetail(null); setPasswordUser(user); }} />}
+            {passwordUser && <UserPasswordModal user={passwordUser} onClose={() => setPasswordUser(null)} onSaved={message => { setPasswordUser(null); setNotice({ text: message || "Contraseña actualizada correctamente." }); }} />}
         </section>
     );
 }
@@ -470,9 +489,21 @@ const emptyPlan = {
 };
 export function Plans({ setNotice }) {
     const [plans, setPlans] = useState(null),
-        [editing, setEditing] = useState(null);
+        [editing, setEditing] = useState(null),
+        [deleting, setDeleting] = useState(null);
     const load = () => api.get("plans").then(setPlans);
     useEffect(load, []);
+    const remove = async () => {
+        try {
+            const response = await api.delete(`plans/${deleting.id}`);
+            setDeleting(null);
+            setNotice({ text: response.message || "Plan eliminado correctamente." });
+            load();
+        } catch (error) {
+            setDeleting(null);
+            setNotice({ type: "error", text: error.response?.data?.message || "No se pudo eliminar el plan." });
+        }
+    };
     return (
         <>
             <section className="sa-card">
@@ -509,9 +540,16 @@ export function Plans({ setNotice }) {
                                                 : "SUSPENDED"
                                         }
                                     />
-                                    <button onClick={() => setEditing(plan)}>
-                                        <FontAwesomeIcon icon={faPen} />
-                                    </button>
+                                    <div className="sa-plan-actions">
+                                        <button type="button" title="Editar plan" onClick={() => setEditing(plan)}><FontAwesomeIcon icon={faPen} /></button>
+                                        <button
+                                            type="button"
+                                            className="is-delete"
+                                            disabled={plan.subscriptions_count > 0 || ["trial", "legacy"].includes(plan.code)}
+                                            title={["trial", "legacy"].includes(plan.code) ? "Es un plan interno del sistema" : plan.subscriptions_count ? "Tiene suscripciones: puedes desactivarlo" : "Eliminar plan"}
+                                            onClick={() => setDeleting(plan)}
+                                        ><FontAwesomeIcon icon={faTrashCan} /></button>
+                                    </div>
                                 </div>
                                 <h3>{plan.name}</h3>
                                 <p>
@@ -572,6 +610,16 @@ export function Plans({ setNotice }) {
                     }}
                 />
             )}
+            {deleting && <ConfirmActionModal
+                eyebrow="ELIMINAR PLAN"
+                title={`Eliminar ${deleting.name}`}
+                text={deleting.subscriptions_count
+                    ? `Este plan registra ${deleting.subscriptions_count} suscripciones. Por seguridad, EcuaPos comprobará su historial y no permitirá borrarlo; puedes desactivarlo desde Editar.`
+                    : "Esta acción elimina definitivamente el plan. Solo continuará si nunca fue asignado y no tiene historial de pagos."}
+                confirmLabel="Eliminar plan"
+                onClose={() => setDeleting(null)}
+                onConfirm={remove}
+            />}
         </>
     );
 }

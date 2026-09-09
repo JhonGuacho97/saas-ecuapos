@@ -12,8 +12,12 @@ use App\Services\SaaS\BillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class SaaSSuperAdminController extends AppBaseController
 {
@@ -62,6 +66,20 @@ class SaaSSuperAdminController extends AppBaseController
         return response()->json(['success' => true, 'data' => $organizations]);
     }
 
+    public function showOrganization(Organization $organization): JsonResponse
+    {
+        $organization->load([
+            'subscription.plan',
+            'stores' => fn ($query) => $query->withCount(['users', 'warehouses'])->orderByDesc('is_default')->orderBy('name'),
+            'users' => fn ($query) => $query
+                ->select(['users.id', 'users.first_name', 'users.last_name', 'users.email', 'users.phone', 'users.language', 'users.status', 'users.created_at'])
+                ->orderBy('users.first_name'),
+        ])->loadCount(['users', 'stores', 'payments'])
+            ->loadSum(['payments as paid_total' => fn ($query) => $query->where('status', SaaSPayment::STATUS_PAID)], 'amount');
+
+        return response()->json(['success' => true, 'data' => $organization]);
+    }
+
     public function updateOrganization(Request $request, Organization $organization): JsonResponse
     {
         $data = $request->validate([
@@ -90,14 +108,65 @@ class SaaSSuperAdminController extends AppBaseController
     public function users(Request $request): JsonResponse
     {
         $search = trim((string) $request->get('search'));
-        $users = User::query()->with(['organizations:id,name'])->when($search, function ($query) use ($search) {
-            $query->where(function ($nested) use ($search) {
-                $nested->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        })->latest('id')->paginate(min(50, max(5, (int) $request->get('per_page', 15))));
+        $users = User::query()
+            ->where('is_super_admin', false)
+            ->whereHas('organizations')
+            ->with(['organizations:id,name,slug,is_active'])
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($nested) use ($search) {
+                    $nested->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('organizations', fn ($organizations) => $organizations->where('name', 'like', "%{$search}%"));
+                });
+            })->latest('id')->paginate(min(50, max(5, (int) $request->get('per_page', 15))));
         return response()->json(['success' => true, 'data' => $users]);
+    }
+
+    public function showUser(User $user): JsonResponse
+    {
+        $this->ensureOrganizationUser($user);
+        $user->load([
+            'organizations:id,name,slug,is_active',
+            'stores:id,organization_id,name,slug,is_active,is_default',
+            'warehouses:id,store_id,name,city,country,is_active',
+        ]);
+
+        return response()->json(['success' => true, 'data' => [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'language' => $user->language,
+            'status' => (bool) $user->status,
+            'email_verified_at' => $user->email_verified_at,
+            'created_at' => $user->created_at,
+            'updated_at' => $user->updated_at,
+            'organizations' => $user->organizations,
+            'stores' => $user->stores,
+            'warehouses' => $user->warehouses,
+        ]]);
+    }
+
+    public function updateUserPassword(Request $request, User $user): JsonResponse
+    {
+        $this->ensureOrganizationUser($user);
+        $data = $request->validate([
+            'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
+        ]);
+
+        DB::transaction(function () use ($user, $data) {
+            $user->forceFill([
+                'password' => Hash::make($data['password']),
+                'remember_token' => Str::random(60),
+                'failed_login_attempts' => 0,
+                'locked_until' => null,
+            ])->save();
+            $user->tokens()->delete();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Contraseña actualizada y sesiones abiertas cerradas.']);
     }
 
     public function plans(): JsonResponse
@@ -115,6 +184,26 @@ class SaaSSuperAdminController extends AppBaseController
     {
         $plan->update($this->validatePlan($request, $plan));
         return response()->json(['success' => true, 'data' => $plan->fresh()->loadCount('subscriptions'), 'message' => 'Plan actualizado.']);
+    }
+
+    public function destroyPlan(SaaSPlan $plan): JsonResponse
+    {
+        DB::transaction(function () use ($plan) {
+            $lockedPlan = SaaSPlan::query()->lockForUpdate()->findOrFail($plan->id);
+            if (in_array($lockedPlan->code, ['trial', 'legacy'], true)) {
+                throw ValidationException::withMessages([
+                    'plan' => 'Los planes internos de prueba e instalación heredada no se pueden eliminar.',
+                ]);
+            }
+            if ($lockedPlan->subscriptions()->exists() || SaaSPayment::where('saas_plan_id', $lockedPlan->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'plan' => 'Este plan tiene historial asociado. Desactívalo para ocultarlo sin perder información.',
+                ]);
+            }
+            $lockedPlan->delete();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Plan eliminado correctamente.']);
     }
 
     public function subscriptions(Request $request): JsonResponse
@@ -226,5 +315,10 @@ class SaaSSuperAdminController extends AppBaseController
             'sort_order' => 'nullable|integer|min:0|max:999',
             'is_active' => 'required|boolean',
         ]);
+    }
+
+    private function ensureOrganizationUser(User $user): void
+    {
+        abort_if($user->is_super_admin || ! $user->organizations()->exists(), 404, 'El usuario de organización no existe.');
     }
 }
