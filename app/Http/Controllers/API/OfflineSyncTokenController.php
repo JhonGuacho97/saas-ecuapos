@@ -5,9 +5,14 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\AppBaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\SaaS\EntitlementService;
 
 class OfflineSyncTokenController extends AppBaseController
 {
+    public function __construct(private readonly EntitlementService $entitlements)
+    {
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -16,7 +21,7 @@ class OfflineSyncTokenController extends AppBaseController
         ]);
         $storeId = $this->requireCurrentStoreId();
         $tokenName = $this->tokenName($storeId, $validated['device_id']);
-        $expiresAt = now()->addHours(max(1, (int) config('saas.offline_lease_hours', 12)));
+        $expiresAt = $this->entitlements->offlineLeaseExpiresAt($this->requireCurrentOrganizationId());
 
         $request->user()->tokens()->where('name', $tokenName)->delete();
         $token = $request->user()->createToken(
@@ -40,8 +45,12 @@ class OfflineSyncTokenController extends AppBaseController
 
     public function destroy(Request $request): JsonResponse
     {
-        $validated = $request->validate(['device_id' => ['required', 'uuid']]);
-        $storeId = $this->requireCurrentStoreId();
+        $validated = $request->validate([
+            'device_id' => ['required', 'uuid'],
+            'store_id' => ['nullable', 'integer'],
+        ]);
+        $storeId = (int) ($validated['store_id'] ?? $request->header('X-Store-Id'));
+        abort_unless($storeId > 0 && $request->user()->stores()->whereKey($storeId)->exists(), 403);
         $request->user()->tokens()
             ->where('name', $this->tokenName($storeId, $validated['device_id']))
             ->delete();

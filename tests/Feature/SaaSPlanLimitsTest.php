@@ -136,9 +136,78 @@ class SaaSPlanLimitsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.subscription.status', OrganizationSubscription::STATUS_EXPIRED);
 
+        // Preferencias personales y seguridad de la cuenta siguen
+        // disponibles aunque el negocio esté en modo consulta.
         $this->withHeaders($headers)->postJson('/api/change-language', ['language' => 'sp'])
+            ->assertOk();
+
+        $this->withHeaders($headers)->postJson('/api/stores', ['name' => 'No debe crearse'])
             ->assertStatus(402)
             ->assertJsonPath('restriction', 'trial_expired');
+
+        // Lo que promete el mensaje tiene que ser cierto: la lectura y la
+        // exportación siguen abiertas. Si algún día el middleware pasa a
+        // bloquear también los GET, este test lo caza.
+        $this->withHeaders($headers)->getJson('/api/products')->assertOk();
+        $this->withHeaders($headers)->getJson('/api/customers')->assertOk();
+    }
+
+    /**
+     * `can_write` de /api/config es lo que apaga los botones de acción en
+     * modo consulta. Tiene que responder exactamente lo mismo que decide
+     * EnsureActiveSubscription, o la interfaz y el servidor se contradicen.
+     */
+    public function test_config_reports_whether_the_interface_can_still_write(): void
+    {
+        $tenant = $this->trialTenant();
+        Sanctum::actingAs($tenant['user'], ['*']);
+        $headers = [
+            'X-Organization-Id' => (string) $tenant['organization']->id,
+            'X-Store-Id' => (string) $tenant['store']->id,
+        ];
+
+        $this->withHeaders($headers)->getJson('/api/config')
+            ->assertOk()
+            ->assertJsonPath('data.can_write', true);
+
+        $tenant['organization']->subscription()->update(['trial_ends_at' => now()->subMinute()]);
+
+        $this->withHeaders($headers)->getJson('/api/config')
+            ->assertOk()
+            ->assertJsonPath('data.can_write', false);
+    }
+
+    /**
+     * El mensaje del 402 traía "14 días" fijo, así que mentía apenas se
+     * cambiaba la duración de la prueba desde el panel -- que ya pasó una
+     * vez, cuando el plan estuvo en 7 días.
+     */
+    public function test_the_expiry_message_uses_the_real_trial_length(): void
+    {
+        $tenant = $this->trialTenant();
+        $tenant['organization']->subscription->plan->update(['trial_days' => 21]);
+        $tenant['organization']->subscription()->update(['trial_ends_at' => now()->subMinute()]);
+
+        Sanctum::actingAs($tenant['user'], ['*']);
+
+        $this->withHeaders([
+            'X-Organization-Id' => (string) $tenant['organization']->id,
+            'X-Store-Id' => (string) $tenant['store']->id,
+        ])->postJson('/api/stores', ['name' => 'No debe crearse'])
+            ->assertStatus(402)
+            ->assertJsonFragment(['message' => 'Tu período de prueba de 21 días terminó. Tus datos siguen disponibles en modo consulta.']);
+    }
+
+    public function test_expired_tenant_can_still_log_out_and_manage_its_own_profile(): void
+    {
+        $tenant = $this->trialTenant();
+        $tenant['organization']->subscription()->update(['trial_ends_at' => now()->subMinute()]);
+        $token = $tenant['user']->createToken('expired-session', ['*'])->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/edit-profile')->assertOk();
+        $this->withToken($token)->postJson('/api/logout')->assertOk();
+
+        $this->assertSame(0, $tenant['user']->tokens()->where('name', 'expired-session')->count());
     }
 
     private function trialTenant(): array

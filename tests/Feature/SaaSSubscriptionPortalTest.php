@@ -22,7 +22,13 @@ class SaaSSubscriptionPortalTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_expired_member_receives_one_subscription_screen_instead_of_module_errors(): void
+    /**
+     * Vencer no es lo mismo que estar suspendido. Con la organización
+     * activa el cliente conserva sus datos y entra en modo consulta; el
+     * muro de pago a pantalla completa queda para cuando la plataforma
+     * desactiva la organización.
+     */
+    public function test_an_expired_subscription_is_read_only_and_a_suspended_organization_is_blocked(): void
     {
         [$user, $organization] = $this->expiredContext();
         Sanctum::actingAs($user, ['*']);
@@ -31,6 +37,7 @@ class SaaSSubscriptionPortalTest extends TestCase
             ->getJson('/api/subscription-portal')
             ->assertOk()
             ->assertJsonPath('data.can_access', false)
+            ->assertJsonPath('data.access_mode', 'read_only')
             ->assertJsonPath('data.can_manage', true)
             ->assertJsonPath('data.reason', 'SUBSCRIPTION_EXPIRED');
 
@@ -38,6 +45,7 @@ class SaaSSubscriptionPortalTest extends TestCase
         $this->withHeader('X-Organization-Id', $organization->id)
             ->getJson('/api/subscription-portal')
             ->assertOk()
+            ->assertJsonPath('data.access_mode', 'blocked')
             ->assertJsonPath('data.reason', 'ORGANIZATION_INACTIVE');
     }
 
@@ -200,10 +208,14 @@ class SaaSSubscriptionPortalTest extends TestCase
             ->assertJsonPath('message', 'Debe seleccionar una organización para administrar su suscripción.');
     }
 
-    public function test_super_admin_approval_reactivates_organization_and_subscription(): void
+    public function test_super_admin_approval_reactivates_a_billing_suspended_organization(): void
     {
         [$member, $organization, $plan, $subscription] = $this->expiredContext();
-        $organization->update(['is_active' => false]);
+        $organization->update([
+            'is_active' => false,
+            'suspension_reason' => Organization::SUSPENSION_BILLING,
+            'suspended_at' => now(),
+        ]);
         $payment = SaaSPayment::create([
             'organization_id' => $organization->id,
             'organization_subscription_id' => $subscription->id,
@@ -225,6 +237,33 @@ class SaaSSubscriptionPortalTest extends TestCase
         $this->assertTrue($organization->fresh()->is_active);
         $this->assertSame(OrganizationSubscription::STATUS_ACTIVE, $subscription->fresh()->status);
         $this->assertSame($plan->id, $subscription->fresh()->saas_plan_id);
+    }
+
+    public function test_payment_does_not_reactivate_an_administratively_suspended_organization(): void
+    {
+        [, $organization, $plan, $subscription] = $this->expiredContext();
+        $organization->update([
+            'is_active' => false,
+            'suspension_reason' => Organization::SUSPENSION_ADMINISTRATIVE,
+            'suspended_at' => now(),
+        ]);
+        $payment = SaaSPayment::create([
+            'organization_id' => $organization->id,
+            'organization_subscription_id' => $subscription->id,
+            'saas_plan_id' => $plan->id,
+            'amount' => $plan->price,
+            'currency' => $plan->currency,
+            'status' => SaaSPayment::STATUS_PENDING,
+            'method' => 'cash',
+            'provider_reference' => 'ADMIN-BLOCK-'.uniqid(),
+            'submitted_at' => now(),
+        ]);
+        Sanctum::actingAs($this->user(true), ['*']);
+
+        $this->postJson("/api/super-admin/payments/{$payment->id}/approve")->assertOk();
+
+        $this->assertFalse($organization->fresh()->is_active);
+        $this->assertSame(Organization::SUSPENSION_ADMINISTRATIVE, $organization->fresh()->suspension_reason);
     }
 
     public function test_current_plan_can_only_be_renewed_during_its_last_five_days(): void
@@ -288,6 +327,40 @@ class SaaSSubscriptionPortalTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.can_access', true)
             ->assertJsonPath('data.subscription.cancel_at_period_end', true);
+    }
+
+    public function test_scheduled_cancellation_stops_access_exactly_at_period_end_without_cron(): void
+    {
+        [$owner, $organization, , $subscription] = $this->activeContext(now()->subMinute());
+        $subscription->update([
+            'cancel_at_period_end' => true,
+            'auto_renew' => false,
+        ]);
+        Sanctum::actingAs($owner, ['*']);
+
+        $this->withHeader('X-Organization-Id', $organization->id)
+            ->getJson('/api/subscription-portal')
+            ->assertOk()
+            ->assertJsonPath('data.can_access', false)
+            ->assertJsonPath('data.access_mode', 'read_only')
+            ->assertJsonPath('data.subscription.status', OrganizationSubscription::STATUS_EXPIRED);
+    }
+
+    public function test_organization_without_subscription_can_submit_a_recovery_payment(): void
+    {
+        Storage::fake('saas_private');
+        [$owner, $organization, $plan, $subscription] = $this->expiredContext();
+        $subscription->delete();
+        Sanctum::actingAs($owner, ['*']);
+
+        $this->submitProof($organization, $plan)->assertCreated();
+
+        $created = OrganizationSubscription::where('organization_id', $organization->id)->firstOrFail();
+        $this->assertSame(OrganizationSubscription::STATUS_EXPIRED, $created->status);
+        $this->assertDatabaseHas('saas_payments', [
+            'organization_subscription_id' => $created->id,
+            'status' => SaaSPayment::STATUS_PENDING,
+        ]);
     }
 
     public function test_other_cancellation_reason_requires_a_note(): void

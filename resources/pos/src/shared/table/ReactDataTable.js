@@ -7,6 +7,7 @@ import DataTable from "react-data-table-component";
 import FilterComponent from "../components/FilterComponent";
 import { renderSortIcons } from "../../config/sortConfig";
 import TableButton from "../action-buttons/TableButton";
+import useReadOnlyMode, { READ_ONLY_MESSAGE } from "../../hooks/useReadOnlyMode";
 import EmptyComponent from "../../components/empty-component/EmptyComponent";
 import { getFormattedMessage } from "../sharedMethod";
 import DateRangePicker from "../datepicker/DateRangePicker";
@@ -79,6 +80,9 @@ const ReactDataTable = (props) => {
     const [loginStatus, setLoginStatus] = useState();
     const [show, setShow] = useState(false);
     const dispatch = useDispatch();
+    // Importar productos escribe en la base, así que cae en modo consulta.
+    // Exportar a Excel/PDF no: son GET y siguen disponibles a propósito.
+    const readOnly = useReadOnlyMode();
 
     const tableColumns = useMemo(() => columns, [columns]);
 
@@ -291,6 +295,8 @@ const ReactDataTable = (props) => {
                                 variant="primary"
                                 className="mx-md-1 me-3  btn-light-primary"
                                 onClick={goToImport}
+                                disabled={readOnly}
+                                title={readOnly ? READ_ONLY_MESSAGE : undefined}
                             >
                                 {importBtnTitle
                                     ? getFormattedMessage(importBtnTitle)

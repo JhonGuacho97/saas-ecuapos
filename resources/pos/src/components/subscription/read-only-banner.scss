@@ -1,0 +1,111 @@
+$ro-amber: #b57408;
+$ro-bg: #fff8ec;
+$ro-line: #ffe2b8;
+
+.ro-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 1040;
+    width: min(920px, calc(100% - 24px));
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px;
+    border: 1px solid $ro-line;
+    border-radius: 14px;
+    background: $ro-bg;
+    box-shadow: 0 12px 34px rgba(29, 52, 88, .16);
+    font-family: Poppins, sans-serif;
+}
+
+.ro-bar-icon {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: #ffeed3;
+    color: $ro-amber;
+    font-size: 15px;
+}
+
+.ro-bar-text {
+    flex: 1;
+    min-width: 0;
+
+    strong { display: block; font-size: 12px; color: #14213a; }
+    span { display: block; margin-top: 2px; font-size: 11px; line-height: 1.5; color: #8a7550; }
+}
+
+.ro-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.ro-bar-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    background: #2166f3;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 6px 16px rgba(33, 102, 243, .22);
+
+    &:hover { color: #fff; transform: translateY(-1px); }
+}
+
+.ro-bar-hint { font-size: 10px; color: #8a7550; max-width: 190px; line-height: 1.45; }
+
+.ro-bar-min {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #a08b62;
+
+    &:hover { background: #ffeed3; }
+}
+
+.ro-pill {
+    position: fixed;
+    right: 18px;
+    bottom: 16px;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 13px;
+    border: 1px solid $ro-line;
+    border-radius: 99px;
+    background: $ro-bg;
+    color: $ro-amber;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 8px 22px rgba(29, 52, 88, .14);
+}
+
+.ro-pill-caret { font-size: 9px; opacity: .7; }
+
+@media (max-width: 720px) {
+    .ro-bar {
+        flex-wrap: wrap;
+        bottom: 8px;
+        padding: 12px;
+    }
+
+    .ro-bar-text { flex-basis: calc(100% - 50px); }
+    .ro-bar-actions { flex-basis: 100%; justify-content: space-between; }
+    .ro-bar-hint { max-width: none; }
+}

@@ -94,7 +94,7 @@ Route::middleware(['auth:sanctum', 'super.admin'])->prefix('super-admin')->group
 
 Route::middleware(['auth:sanctum', 'super.admin', 'super.admin.2fa'])->prefix('super-admin')->group(function () {
     Route::get('backup/download', [BackupController::class, 'download']);
-    Route::get('cache-clear', [SettingAPIController::class, 'clearCache']);
+    Route::post('cache-clear', [SettingAPIController::class, 'clearCache']);
     Route::resource('currencies', CurrencyAPIController::class)->except(['index'])->names([
         'create' => 'super-admin.currencies.create',
         'store' => 'super-admin.currencies.store',
@@ -140,6 +140,18 @@ Route::middleware('auth:sanctum')->prefix('subscription-portal')->group(function
     Route::post('/cancel', [SaaSSubscriptionPortalController::class, 'cancel']);
 });
 
+// Acciones de seguridad y cierre de sesión deben seguir disponibles aunque
+// la organización esté vencida o suspendida.
+Route::middleware('auth:sanctum')->post('logout', [AuthController::class, 'logout']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('edit-profile', [UserAPIController::class, 'editProfile'])->name('edit-profile');
+    Route::post('update-profile', [UserAPIController::class, 'updateProfile'])->name('update-profile');
+    Route::patch('change-password', [UserAPIController::class, 'changePassword'])->name('user.changePassword');
+    Route::post('change-language', [UserAPIController::class, 'updateLanguage']);
+});
+Route::middleware(['auth:sanctum', 'abilities:*'])
+    ->delete('offline-sync/device-token', [OfflineSyncTokenController::class, 'destroy']);
+
 Route::get('/sri/lookup', [SriController::class, 'lookup']);
 Route::prefix('catalog/{store:slug}')->middleware('throttle:60,1')->group(function () {
     Route::get('/', [PublicCatalogController::class, 'show']);
@@ -149,7 +161,6 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         ->where(['category' => 'excel|pdf', 'filename' => '[A-Za-z0-9][A-Za-z0-9._-]*']);
     Route::middleware(['abilities:*', 'permission:manage_sale|manage_pos_screen'])->prefix('offline-sync')->group(function () {
         Route::post('device-token', [OfflineSyncTokenController::class, 'store']);
-        Route::delete('device-token', [OfflineSyncTokenController::class, 'destroy']);
     });
 
     // ── Facturación electrónica (SRI) ──────────────────────────────
@@ -372,10 +383,6 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
     });
     Route::post('users/{user}/change-password', [UserAPIController::class, 'updateUserPassword'])
         ->middleware('permission:change_user_passwords');
-    // update user profile
-    Route::get('edit-profile', [UserAPIController::class, 'editProfile'])->name('edit-profile');
-    Route::post('update-profile', [UserAPIController::class, 'updateProfile'])->name('update-profile');
-    Route::patch('/change-password', [UserAPIController::class, 'changePassword'])->name('user.changePassword');
     Route::get('kardex', [KardexAPIController::class, 'index'])
         ->middleware('permission:manage_kardex');
     Route::middleware('permission:manage_login_logs')->group(function () {
@@ -486,7 +493,6 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         Route::get('states/{id}', [SettingAPIController::class, 'getStates']);
         Route::get('mail-settings', [SettingAPIController::class, 'getMailSettings']);
         Route::post('mail-settings/update', [SettingAPIController::class, 'updateMailSettings']);
-        Route::get('cache-clear', [SettingAPIController::class, 'clearCache'])->name('cache-clear');
     });
 
     // El listado de idiomas alimenta el selector de idioma del navbar,
@@ -518,7 +524,6 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
         [PurchaseAPIController::class, 'pdfDownload']
     )->name('purchase-pdf-download');
     Route::get('purchase-info/{purchase}', [PurchaseAPIController::class, 'purchaseInfo'])->name('purchase-info');
-    Route::post('logout', [AuthController::class, 'logout']);
 
     Route::middleware('permission:manage_adjustments')->group(function () {
         Route::resource('adjustments', AdjustmentAPIController::class);
@@ -557,9 +562,6 @@ Route::middleware(['auth:sanctum', 'store.context', 'subscription.active'])->gro
             [PurchaseReturnAPIController::class, 'pdfDownload']
         )->name('purchase-return-pdf-download');
     });
-
-    //Language Change
-    Route::post('change-language', [UserAPIController::class, 'updateLanguage']);
 
     // warehouse report
     Route::get('warehouse-report', [WarehouseAPIController::class, 'warehouseReport'])->name('report-warehouse');
@@ -756,6 +758,7 @@ Route::middleware([
     'auth:sanctum',
     'abilities:offline-sales:sync',
     'store.context',
+    'subscription.active',
     'permission:manage_sale|manage_pos_screen',
     'throttle:30,1',
 ])->post('offline-sync/sales', [OfflineSaleSyncController::class, 'store']);
@@ -764,6 +767,7 @@ Route::middleware([
     'auth:sanctum',
     'abilities:offline-sales:sync',
     'store.context',
+    'subscription.active',
     'permission:manage_sale|manage_pos_screen',
     'throttle:120,1',
 ])->get('offline-sync/sales/{clientUuid}/status', [OfflineSaleSyncController::class, 'status']);
@@ -772,6 +776,7 @@ Route::middleware([
     'auth:sanctum',
     'abilities:offline-sales:sync',
     'store.context',
+    'subscription.active',
     'permission:manage_sale|manage_pos_screen',
     'throttle:60,1',
 ])->post('offline-sync/sales/diagnose', [OfflineSaleSyncController::class, 'diagnose']);
@@ -780,6 +785,7 @@ Route::middleware([
     'auth:sanctum',
     'abilities:offline-customers:sync',
     'store.context',
+    'subscription.active',
     'permission:manage_customers|manage_pos_screen',
     'throttle:30,1',
 ])->post('offline-sync/customers', [OfflineCustomerSyncController::class, 'store']);

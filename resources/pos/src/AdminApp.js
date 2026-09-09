@@ -11,6 +11,26 @@ function AdminApp(props) {
     const { config } = props;
     const token = localStorage.getItem(Tokens.ADMIN);
     const { allConfigData } = useSelector((state) => state);
+    const isReadOnly = allConfigData?.can_write === false;
+
+    const isMutationRoute = (path) => {
+        if (path === "profile/edit" || path === "subscription") return false;
+
+        return /(^|\/)(create|edit)(\/|$)/i.test(path)
+            || [
+                "sri-config",
+                "settings",
+                "prefixes",
+                "mail-settings",
+                "catalog-settings",
+                "sms-api",
+            ].includes(path)
+            || path === "sales/return/:id"
+            || path === "quotations/Create_sale/:id"
+            || path === "email-templates/:id"
+            || path === "sms-templates/:id"
+            || path === "languages/:id";
+    };
 
     const prepareRoutes = (config) => {
         const permissions = config;
@@ -42,7 +62,9 @@ function AdminApp(props) {
                             exact={true}
                             path={route.path}
                             element={
-                                token !== null ? (
+                                token !== null && isReadOnly && isMutationRoute(route.path) ? (
+                                    <Navigate replace to={"/app/dashboard"} />
+                                ) : token !== null ? (
                                     <ProtectedRoute
                                         allConfigData={allConfigData}
                                         route={route.path}

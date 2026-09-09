@@ -7,6 +7,7 @@ import {
     faKey
 } from '@fortawesome/free-solid-svg-icons';
 import { placeholderText } from '../sharedMethod';
+import useReadOnlyMode, { READ_ONLY_MESSAGE } from '../../hooks/useReadOnlyMode';
 
 const ActionButton = (props) => {
     const {
@@ -22,6 +23,10 @@ const ActionButton = (props) => {
     } = props;
 
     const isAdmin = item.name === 'admin' || item.email === 'admin@ecua-pos.com';
+    // Ver/consultar sigue disponible en modo consulta; editar, borrar y
+    // cambiar contraseñas no. El servidor responde 402 igual, esto solo
+    // evita que el usuario lo descubra a golpes.
+    const readOnly = useReadOnlyMode();
 
     return (
         <>
@@ -40,7 +45,8 @@ const ActionButton = (props) => {
 
             {!isAdmin && isPasswordMode && onClickPassword && (
                 <button
-                    title="Cambiar contraseña"
+                    title={readOnly ? READ_ONLY_MESSAGE : 'Cambiar contraseña'}
+                    disabled={readOnly}
                     className='btn text-warning fs-3 border-0 px-xxl-2 px-1'
                     onClick={(e) => {
                         e.stopPropagation();
@@ -53,7 +59,8 @@ const ActionButton = (props) => {
 
             {!isAdmin && isEditMode && (
                 <button
-                    title={placeholderText('globally.edit.tooltip.label')}
+                    title={readOnly ? READ_ONLY_MESSAGE : placeholderText('globally.edit.tooltip.label')}
+                    disabled={readOnly}
                     className='btn text-primary fs-3 border-0 px-xxl-2 px-1'
                     onClick={(e) => {
                         e.stopPropagation();
@@ -66,7 +73,8 @@ const ActionButton = (props) => {
 
             {!isAdmin && isDeleteMode && (
                 <button
-                    title={placeholderText('globally.delete.tooltip.label')}
+                    title={readOnly ? READ_ONLY_MESSAGE : placeholderText('globally.delete.tooltip.label')}
+                    disabled={readOnly}
                     className='btn px-2 pe-0 text-danger fs-3 border-0'
                     onClick={(e) => {
                         e.stopPropagation();

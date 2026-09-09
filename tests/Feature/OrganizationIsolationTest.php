@@ -283,6 +283,8 @@ class OrganizationIsolationTest extends TestCase
             'saas_plan_id' => $plan->id,
             'status' => OrganizationSubscription::STATUS_ACTIVE,
             'starts_at' => now(),
+            'current_period_starts_at' => now(),
+            'current_period_ends_at' => now()->addYear(),
             'electronic_documents_used' => 0,
         ]);
 

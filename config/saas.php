@@ -1,6 +1,10 @@
 <?php
 
 return [
+    // Permite habilitar o cerrar el alta publica de organizaciones sin
+    // desplegar codigo. En produccion el valor se toma del archivo .env.
+    'self_registration_enabled' => (bool) env('SAAS_SELF_REGISTRATION_ENABLED', true),
+
     /*
      * proveedor => clase que implementa RecurringPaymentGateway.
      * Se deja vacío hasta seleccionar y configurar la cuenta comercial.

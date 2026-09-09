@@ -99,28 +99,29 @@ export const loginAction = (user, navigate, setLoading, onTwoFactorRequired) => 
 };
 export const logoutAction = (token, navigate) => async (dispatch) => {
     await revokeOfflineSyncCredential().catch(() => null);
-    await apiConfig.post('logout', token)
-        .then(() => {
-            localStorage.removeItem(Tokens.ADMIN);
-            localStorage.removeItem(Tokens.USER);
-            localStorage.removeItem(Tokens.IMAGE);
-            localStorage.removeItem(Tokens.FIRST_NAME);
-            localStorage.removeItem(Tokens.LAST_NAME);
-            localStorage.removeItem('loginUserArray');
-            localStorage.removeItem(Tokens.UPDATED_EMAIL);
-            localStorage.removeItem(Tokens.UPDATED_FIRST_NAME);
-            localStorage.removeItem(Tokens.UPDATED_LAST_NAME);
-            localStorage.removeItem(Tokens.USER_IMAGE_URL);
-            localStorage.removeItem(Tokens.CURRENT_STORE_ID);
-            localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
-            localStorage.removeItem(Tokens.ROLE_NAME);
-            localStorage.removeItem(Tokens.IS_SUPER_ADMIN);
-            navigate('/login');
-            dispatch(addToast({ text: getFormattedMessage('logout.success.message') }));
-        })
-        .catch(({ response }) => {
-            dispatch(addToast({ text: response.data.message, type: toastType.ERROR }));
-        });
+    try {
+        await apiConfig.post('logout', token);
+    } catch (error) {
+        // El servidor puede estar temporalmente inaccesible o la sesión ya
+        // haber expirado. Eso no debe dejar credenciales locales activas.
+    } finally {
+        localStorage.removeItem(Tokens.ADMIN);
+        localStorage.removeItem(Tokens.USER);
+        localStorage.removeItem(Tokens.IMAGE);
+        localStorage.removeItem(Tokens.FIRST_NAME);
+        localStorage.removeItem(Tokens.LAST_NAME);
+        localStorage.removeItem('loginUserArray');
+        localStorage.removeItem(Tokens.UPDATED_EMAIL);
+        localStorage.removeItem(Tokens.UPDATED_FIRST_NAME);
+        localStorage.removeItem(Tokens.UPDATED_LAST_NAME);
+        localStorage.removeItem(Tokens.USER_IMAGE_URL);
+        localStorage.removeItem(Tokens.CURRENT_STORE_ID);
+        localStorage.removeItem(Tokens.CURRENT_ORGANIZATION_ID);
+        localStorage.removeItem(Tokens.ROLE_NAME);
+        localStorage.removeItem(Tokens.IS_SUPER_ADMIN);
+        navigate('/login');
+        dispatch(addToast({ text: getFormattedMessage('logout.success.message') }));
+    }
 };
 
 export const forgotPassword = (user) => async (dispatch) => {

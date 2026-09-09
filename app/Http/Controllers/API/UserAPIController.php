@@ -196,6 +196,12 @@ class UserAPIController extends AppBaseController
             'default_warehouse_id' => $defaultWarehouse?->id,
             'default_warehouse_name' => $defaultWarehouse?->name,
             'subscription' => $this->entitlements->summary($organizationId),
+            // Modo consulta: con esto el frontend deshabilita los botones
+            // de acción en vez de dejar que el usuario los apriete y se
+            // coma un 402. Explícitamente false cuando no se puede
+            // escribir -- un snapshot offline viejo no trae la clave, y
+            // ahí NO se debe asumir solo lectura.
+            'can_write' => $this->entitlements->organizationCanWrite($organizationId),
             // Gobierna el ítem "Administrar suscripciones" del menú de
             // usuario: renovar o mejorar el plan es cosa del dueño de la
             // cuenta, no de cada cajero. El backend lo revalida igual en

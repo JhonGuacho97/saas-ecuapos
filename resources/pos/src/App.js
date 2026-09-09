@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Route, useLocation, Navigate, Routes } from "react-router-dom";
 import "../../pos/src/assets/sass/style.react.scss";
 import { useDispatch, useSelector } from "react-redux";
 import { IntlProvider } from "react-intl";
-import { settingsKey, Tokens } from "./constants";
+import { settingsKey, toastType, Tokens } from "./constants";
 import Toasts from "./shared/toast/Toasts";
 import { fetchFrontSetting } from "./store/action/frontSettingAction";
 import { fetchConfig } from "./store/action/configAction";
 import { fetchMyStores } from "./store/action/storeAction";
+import { addToast } from "./store/action/toastAction";
 import { addRTLSupport, getDefaultRouteForPermissions } from "./shared/sharedMethod";
 import Login from "./components/auth/Login";
 import ResetPassword from "./components/auth/ResetPassword";
@@ -17,6 +18,7 @@ import AdminApp from "./AdminApp";
 import TopProgressBar from "./shared/components/loaders/TopProgressBar";
 import SuperAdminApp from "./components/superAdmin";
 import SubscriptionAccessGate from "./components/subscription/SubscriptionAccessGate";
+import ReadOnlyBanner from "./components/subscription/ReadOnlyBanner";
 import apiConfig from "./config/apiConfig";
 import useLanguage from "./hooks/useLanguage";
 
@@ -68,6 +70,8 @@ function App() {
         dispatch(fetchFrontSetting());
     }), [dispatch]);
 
+    const accessModeRef = useRef(null);
+
     const checkSaaSAccess = useCallback(async () => {
         if (!token || isSuperAdmin) return { can_access: true };
         try {
@@ -81,8 +85,23 @@ function App() {
                 }));
                 await loadWorkspace();
             } else {
+                // Sin permiso offline: el modo consulta exige servidor, que
+                // es quien decide qué se puede leer.
                 localStorage.removeItem(SAAS_OFFLINE_LEASE_KEY);
+                // El modo consulta necesita el mismo arranque que la app
+                // normal (permisos, tiendas, ajustes). Son todos GET, que
+                // EnsureActiveSubscription deja pasar con la suscripción
+                // vencida; sin esto AdminApp se queda en el cargador.
+                //
+                // Solo al ENTRAR al modo: cada escritura rechazada dispara
+                // saas:access-blocked, que revalida el acceso. Sin esta
+                // guarda, un usuario probando botones recargaría el
+                // workspace entero en cada intento.
+                if (access.access_mode === 'read_only' && accessModeRef.current !== 'read_only') {
+                    await loadWorkspace();
+                }
             }
+            accessModeRef.current = access.access_mode ?? (access.can_access ? 'full' : 'blocked');
             return access;
         } catch (error) {
             if (!error.response) {
@@ -112,10 +131,20 @@ function App() {
     useEffect(() => { checkSaaSAccess(); }, [checkSaaSAccess]);
 
     useEffect(() => {
-        const handleBlockedAccess = () => checkSaaSAccess();
+        // El interceptor no puede despachar al store (no se exporta desde
+        // index.js), así que reenvía el 402 como evento y el aviso se arma
+        // acá. Sin esto, en modo consulta el usuario aprieta "Guardar", no
+        // pasa nada visible y parece que la app está rota.
+        const handleBlockedAccess = event => {
+            const message = event.detail?.message;
+            if (message) {
+                dispatch(addToast({ text: message, type: toastType.ERROR }));
+            }
+            checkSaaSAccess();
+        };
         window.addEventListener('saas:access-blocked', handleBlockedAccess);
         return () => window.removeEventListener('saas:access-blocked', handleBlockedAccess);
-    }, [checkSaaSAccess]);
+    }, [checkSaaSAccess, dispatch]);
 
     // ─── Redirección según permisos ───────────────────────────────────────────
     const [redirectTo, setRedirectTo] = useState("/app/dashboard");
@@ -158,7 +187,20 @@ function App() {
                                     ? (saasAccess.offline && !location.pathname.startsWith('/app/pos')
                                         ? <Navigate replace to="/app/pos" />
                                         : <AdminApp config={config} />)
-                                    : <SubscriptionAccessGate access={saasAccess} onRefresh={checkSaaSAccess} />}
+                                    // Suscripción vencida con la organización
+                                    // todavía activa: la app abre en modo
+                                    // consulta. El muro de pago queda para el
+                                    // bloqueo real (organización desactivada,
+                                    // o acceso que no se pudo verificar).
+                                    : saasAccess.access_mode === 'read_only'
+                                        ? <>
+                                            <AdminApp config={config} />
+                                            <ReadOnlyBanner
+                                                canManage={saasAccess.can_manage}
+                                                organizationName={saasAccess.organization?.name}
+                                            />
+                                        </>
+                                        : <SubscriptionAccessGate access={saasAccess} onRefresh={checkSaaSAccess} />}
                     />
                     <Route
                         path="/"
