@@ -7,6 +7,7 @@ use App\Models\Organization;
 use App\Models\OrganizationSubscription;
 use App\Models\SaaSUsageReservation;
 use App\Models\Warehouse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class EntitlementService
@@ -105,6 +106,43 @@ class EntitlementService
         );
     }
 
+    /**
+     * La misma decisión que toma EnsureActiveSubscription en cada
+     * escritura, pero como respuesta en vez de excepción: el frontend la
+     * necesita al arrancar para deshabilitar los botones de acción en
+     * modo consulta, en lugar de dejar que el usuario los apriete y
+     * reciba un 402.
+     */
+    public function organizationCanWrite(int $organizationId): bool
+    {
+        try {
+            $this->assertOrganizationWritable($organizationId);
+
+            return true;
+        } catch (SubscriptionRestrictionException) {
+            return false;
+        }
+    }
+
+    /**
+     * Expiración máxima de una credencial offline. La autorización local
+     * jamás puede sobrevivir al acceso que fue validado por el servidor.
+     */
+    public function offlineLeaseExpiresAt(int $organizationId): Carbon
+    {
+        $subscription = OrganizationSubscription::with('plan')
+            ->where('organization_id', $organizationId)
+            ->first();
+        $this->assertWritable($subscription);
+
+        $leaseEndsAt = now()->addHours(max(1, (int) config('saas.offline_lease_hours', 12)));
+        $accessEndsAt = $this->accessEndsAt($subscription);
+
+        return $accessEndsAt && $accessEndsAt->lessThan($leaseEndsAt)
+            ? $accessEndsAt->copy()
+            : $leaseEndsAt;
+    }
+
     public function summary(int $organizationId): array
     {
         $subscription = OrganizationSubscription::with('plan')
@@ -181,8 +219,21 @@ class EntitlementService
         }
 
         if ($this->isExpired($subscription)) {
+            // El mensaje traía "14 días" fijo y hablaba de prueba incluso
+            // cuando lo que venció era un plan pagado. Se arma con los
+            // datos reales para no mentirle al cliente en la pantalla que
+            // justamente le pide que pague.
+            $wasTrial = $subscription->status === OrganizationSubscription::STATUS_TRIALING
+                && $subscription->trial_ends_at !== null;
+            $trialDays = (int) ($subscription->plan?->trial_days ?? 0);
+
             throw new SubscriptionRestrictionException(
-                'Tu periodo de prueba de 14 días terminó. Tus datos siguen disponibles en modo consulta.',
+                $wasTrial
+                    ? sprintf(
+                        'Tu período de prueba%s terminó. Tus datos siguen disponibles en modo consulta.',
+                        $trialDays > 0 ? " de {$trialDays} días" : ''
+                    )
+                    : 'La suscripción de esta organización venció. Tus datos siguen disponibles en modo consulta.',
                 'trial_expired',
                 402,
                 ['trial_ends_at' => $subscription->trial_ends_at?->toIso8601String()]
@@ -209,21 +260,50 @@ class EntitlementService
 
     private function isExpired(OrganizationSubscription $subscription): bool
     {
+        $isLegacy = $subscription->plan?->code === 'legacy';
+
         return in_array($subscription->status, [
                 OrganizationSubscription::STATUS_EXPIRED,
                 OrganizationSubscription::STATUS_CANCELED,
             ], true)
+            || ($subscription->cancel_at_period_end
+                && $this->accessEndsAt($subscription)
+                && now()->greaterThanOrEqualTo($this->accessEndsAt($subscription)))
             || ($subscription->status === OrganizationSubscription::STATUS_TRIALING
-                && $subscription->trial_ends_at
-                && now()->greaterThanOrEqualTo($subscription->trial_ends_at))
+                && (! $subscription->trial_ends_at
+                    || now()->greaterThanOrEqualTo($subscription->trial_ends_at)))
             || ($subscription->status === OrganizationSubscription::STATUS_ACTIVE
-                && $subscription->current_period_ends_at
-                && now()->greaterThanOrEqualTo(
-                    $subscription->current_period_ends_at->copy()->addDays((int) ($subscription->plan?->grace_days ?? 0))
-                ))
+                && ! $isLegacy
+                && (! $subscription->current_period_ends_at
+                    || now()->greaterThanOrEqualTo(
+                        $subscription->current_period_ends_at->copy()->addDays((int) ($subscription->plan?->grace_days ?? 0))
+                    )))
             || ($subscription->status === OrganizationSubscription::STATUS_PAST_DUE
-                && $subscription->grace_ends_at
-                && now()->greaterThanOrEqualTo($subscription->grace_ends_at));
+                && (! $subscription->grace_ends_at
+                    || now()->greaterThanOrEqualTo($subscription->grace_ends_at)));
+    }
+
+    private function accessEndsAt(OrganizationSubscription $subscription): ?Carbon
+    {
+        if ($subscription->status === OrganizationSubscription::STATUS_TRIALING) {
+            return $subscription->trial_ends_at;
+        }
+
+        if ($subscription->status === OrganizationSubscription::STATUS_PAST_DUE) {
+            return $subscription->grace_ends_at;
+        }
+
+        if ($subscription->status !== OrganizationSubscription::STATUS_ACTIVE
+            || $subscription->plan?->code === 'legacy') {
+            return null;
+        }
+
+        if ($subscription->cancel_at_period_end) {
+            return $subscription->current_period_ends_at;
+        }
+
+        return $subscription->current_period_ends_at?->copy()
+            ->addDays((int) ($subscription->plan?->grace_days ?? 0));
     }
 
     private function resourceState(OrganizationSubscription $subscription, string $resource): array

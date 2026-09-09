@@ -77,15 +77,27 @@ export default function SubscriptionAccessGate({ access, onRefresh }) {
     }
 
     const inactive = access.reason === 'ORGANIZATION_INACTIVE';
+    const administrativeSuspension = inactive && access.can_purchase === false;
     return <GateShell logout={logout}>
         <section className="sub-hero">
             <span className="sub-state-icon"><FontAwesomeIcon icon={inactive ? faBuilding : faReceipt} /></span>
-            <span className="sub-kicker">{inactive ? 'ACCESO TEMPORALMENTE SUSPENDIDO' : 'TU PERÍODO DE PRUEBA FINALIZÓ'}</span>
+            {/* Este muro ya no cubre el vencimiento con la organización
+                activa -- eso ahora abre la app en modo consulta (ver
+                App.js y access_mode). Queda para la suspensión y como
+                respaldo, así que el texto no puede dar por hecho que lo
+                que venció fue una prueba: también puede ser un plan
+                pagado. */}
+            <span className="sub-kicker">{inactive ? 'ACCESO TEMPORALMENTE SUSPENDIDO' : 'TU SUSCRIPCIÓN FINALIZÓ'}</span>
             <h1>{inactive ? 'Esta organización no está disponible' : 'Continúa trabajando con EcuaPos'}</h1>
-            <p>{inactive ? 'El acceso fue suspendido temporalmente. Esto puede deberse a un pago pendiente o a una revisión administrativa; toda tu información continúa protegida.' : 'Tus productos, ventas y configuraciones siguen guardados. Elige el plan que mejor se adapte a tu negocio para recuperar el acceso.'}</p>
+            <p>{administrativeSuspension
+                ? 'El acceso fue suspendido por una revisión administrativa o de seguridad. Un pago no puede reactivar esta cuenta; contacta con soporte para resolver el bloqueo.'
+                : inactive
+                    ? 'El acceso fue suspendido por un pago pendiente. Toda tu información continúa protegida y podrás recuperarla al regularizar tu plan.'
+                    : 'Tus productos, ventas y configuraciones siguen guardados. Elige el plan que mejor se adapte a tu negocio para recuperar el acceso.'}</p>
             {inactive && <div className="sub-inline-alert"><FontAwesomeIcon icon={faShieldHalved} /> Ningún dato ha sido eliminado.</div>}
+            {administrativeSuspension && <a className="sub-btn sub-btn--primary" href="mailto:support@ecua-pos.com">Contactar con soporte</a>}
         </section>
-        <PlanCards plans={access.plans} onSelect={setSelectedPlan} />
+        {!administrativeSuspension && <PlanCards plans={access.plans} onSelect={setSelectedPlan} />}
     </GateShell>;
 }
 

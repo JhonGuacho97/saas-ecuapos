@@ -6,7 +6,6 @@ import TabTitle from "../../shared/tab-title/TabTitle";
 import {
     fetchSetting,
     editSetting,
-    fetchCacheClear,
     fetchState,
 } from "../../store/action/settingAction";
 import { fetchCurrencies } from "../../store/action/currencyAction";
@@ -29,7 +28,6 @@ import "./settings.scss";
 const Settings = (props) => {
     const {
         fetchSetting,
-        fetchCacheClear,
         fetchCurrencies,
         fetchAllCustomer,
         customers,
@@ -705,11 +703,6 @@ const Settings = (props) => {
         }
     };
 
-    const onCacheClear = (event) => {
-        event.preventDefault();
-        fetchCacheClear();
-    };
-
     const onDateFormatChange = (obj) => {
         setDisable(false);
         setSettingValue((settingValue) => ({
@@ -1290,33 +1283,6 @@ const Settings = (props) => {
                     </div>
                 </div>
 
-                <section className="settings-maintenance" id="settings-maintenance">
-                    <div className="settings-maintenance-heading">
-                        <span className="settings-eyebrow">Herramientas del sistema</span>
-                        <h2>Mantenimiento y respaldo</h2>
-                        <p>Acciones administrativas para mantener el sistema actualizado y proteger la información.</p>
-                    </div>
-                    <div className="settings-maintenance-grid">
-                        <article className="settings-tool-card settings-tool-card--cache">
-                            <span className="settings-tool-icon"><i className="bi bi-lightning-charge" /></span>
-                            <div className="settings-tool-copy">
-                                <h3>{getFormattedMessage("settings.clear-cache.title")}</h3>
-                                <p>Renueva la caché de la aplicación cuando una configuración no se refleje inmediatamente.</p>
-                            </div>
-                            <Form>
-                                <button
-                                    className="btn settings-tool-button"
-                                    onClick={(event) => onCacheClear(event)}
-                                >
-                                    <i className="bi bi-arrow-clockwise me-2" />
-                                    {getFormattedMessage(
-                                        "settings.clear-cache.title"
-                                    )}
-                                </button>
-                            </Form>
-                        </article>
-                    </div>
-                </section>
             </main>
         </MasterLayout>
     );
@@ -1346,7 +1312,6 @@ const mapStateToProps = (state) => {
 export default connect(mapStateToProps, {
     fetchSetting,
     fetchCurrencies,
-    fetchCacheClear,
     fetchAllCustomer,
     fetchAllWarehouses,
     editSetting,

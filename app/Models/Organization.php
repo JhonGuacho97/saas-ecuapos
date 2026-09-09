@@ -23,14 +23,22 @@ class Organization extends BaseModel
     public const STATUS_INVITED = 'INVITED';
     public const STATUS_SUSPENDED = 'SUSPENDED';
 
+    public const SUSPENSION_BILLING = 'BILLING';
+    public const SUSPENSION_ADMINISTRATIVE = 'ADMINISTRATIVE';
+    public const SUSPENSION_SECURITY = 'SECURITY';
+
     protected $fillable = [
         'name',
         'slug',
         'is_active',
+        'suspension_reason',
+        'suspended_at',
+        'suspension_note',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'suspended_at' => 'datetime',
     ];
 
     public function stores(): HasMany

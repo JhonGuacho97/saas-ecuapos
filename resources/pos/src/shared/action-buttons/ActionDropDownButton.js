@@ -8,6 +8,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Permissions } from '../../constants';
 import { useSelector } from 'react-redux';
+import useReadOnlyMode, { READ_ONLY_MESSAGE } from '../../hooks/useReadOnlyMode';
 
 const ActionDropDownButton = (props) => {
     const {
@@ -23,6 +24,9 @@ const ActionDropDownButton = (props) => {
 
 
     const { config } = useSelector(state => state)
+    // Ver, PDF, ticket y RIDE siguen disponibles en modo consulta -- son
+    // lectura. Lo que crea o modifica documentos se deshabilita.
+    const readOnly = useReadOnlyMode();
 
     return (
         <Dropdown className='table-dropdown'>
@@ -99,7 +103,8 @@ const ActionDropDownButton = (props) => {
                             onEmitirFacturaClick(item);
                         }}
                         eventKey='emitir-factura'
-                        disabled={isEmitiendoFactura}
+                        disabled={isEmitiendoFactura || readOnly}
+                        title={readOnly ? READ_ONLY_MESSAGE : undefined}
                         className='py-3 px-4 d-flex align-items-center fs-6'
                     >
                         <img src="https://res.cloudinary.com/dxt0es7sj/image/upload/v1785960274/sri_negro_ct8qgt.svg" alt="SRI" className='me-2' />
@@ -120,7 +125,7 @@ const ActionDropDownButton = (props) => {
                     <Dropdown.Item onClick={(e) => {
                         e.stopPropagation();
                         onCreatePaymentClick(item);
-                    }} eventKey='6' className='py-3 px-4 d-flex align-items-center fs-6'>
+                    }} eventKey='6' disabled={readOnly} title={readOnly ? READ_ONLY_MESSAGE : undefined} className='py-3 px-4 d-flex align-items-center fs-6'>
                         <FontAwesomeIcon icon={faDollarSign}
                             className='me-2' />
                         {getFormattedMessage("create-payment-title")}
@@ -130,7 +135,7 @@ const ActionDropDownButton = (props) => {
                     <Dropdown.Item onClick={(e) => {
                         e.stopPropagation();
                         onCreateSaleClick(item);
-                    }} eventKey='6' className='py-3 px-4 d-flex align-items-center fs-6'>
+                    }} eventKey='6' disabled={readOnly} title={readOnly ? READ_ONLY_MESSAGE : undefined} className='py-3 px-4 d-flex align-items-center fs-6'>
                         <FontAwesomeIcon icon={faCartShopping}
                             className='me-2' />
                         {getFormattedMessage("sale.create.title")}
@@ -141,7 +146,7 @@ const ActionDropDownButton = (props) => {
                     <Dropdown.Item onClick={(e) => {
                         e.stopPropagation();
                         onCreateSaleReturnClick(item);
-                    }} eventKey='6' className='py-3 px-4 d-flex align-items-center fs-6'>
+                    }} eventKey='6' disabled={readOnly} title={readOnly ? READ_ONLY_MESSAGE : undefined} className='py-3 px-4 d-flex align-items-center fs-6'>
                         <FontAwesomeIcon icon={faCartShopping}
                             className='me-2' />
                         {item.is_return === 1 ? getFormattedMessage("sale-return.edit.title") : getFormattedMessage("sale-return.create.title")}
@@ -152,14 +157,14 @@ const ActionDropDownButton = (props) => {
                     <Dropdown.Item onClick={(e) => {
                         e.stopPropagation();
                         goToEditProduct(item);
-                    }} eventKey='3' className='py-3 px-4 d-flex align-items-center fs-6'>
+                    }} eventKey='3' disabled={readOnly} title={readOnly ? READ_ONLY_MESSAGE : undefined} className='py-3 px-4 d-flex align-items-center fs-6'>
                         <FontAwesomeIcon icon={faPenToSquare}
                             className='me-2' />{getFormattedMessage('globally.edit.tooltip.label')} {title}
                     </Dropdown.Item>}
                 <Dropdown.Item onClick={(e) => {
                     e.stopPropagation();
                     onClickDeleteModel(item);
-                }} eventKey='4' className='py-3 px-4 d-flex align-items-center fs-6'>
+                }} eventKey='4' disabled={readOnly} title={readOnly ? READ_ONLY_MESSAGE : undefined} className='py-3 px-4 d-flex align-items-center fs-6'>
                     <FontAwesomeIcon icon={faTrash}
                         className='me-2' /> {getFormattedMessage('globally.delete.tooltip.label')} {title}
                 </Dropdown.Item>

@@ -92,6 +92,7 @@ class BillingService
                 'canceled_at' => null,
                 'electronic_documents_used' => 0,
             ]);
+            $this->reactivateBillingSuspension($subscription->organization_id);
 
             $this->event($subscription, 'PAYMENT_CONFIRMED', 'Pago confirmado y período renovado', [
                 'payment_id' => $payment->id,
@@ -147,7 +148,7 @@ class BillingService
                 'canceled_at' => null,
                 'electronic_documents_used' => 0,
             ]);
-            Organization::whereKey($payment->organization_id)->update(['is_active' => true]);
+            $this->reactivateBillingSuspension($payment->organization_id);
 
             $this->event($subscription, 'MANUAL_PAYMENT_APPROVED', $isPlanChange
                 ? 'Comprobante aprobado y cambio de plan activado'
@@ -281,6 +282,20 @@ class BillingService
         $this->event($subscription, 'RENEWAL_FAILED', 'No se pudo completar la renovación automática', [
             'reason' => mb_substr($reason, 0, 500),
         ]);
+    }
+
+    private function reactivateBillingSuspension(int $organizationId): void
+    {
+        $organization = Organization::lockForUpdate()->findOrFail($organizationId);
+        if (! $organization->is_active
+            && $organization->suspension_reason === Organization::SUSPENSION_BILLING) {
+            $organization->update([
+                'is_active' => true,
+                'suspension_reason' => null,
+                'suspended_at' => null,
+                'suspension_note' => null,
+            ]);
+        }
     }
 
     private function periodEnd(CarbonInterface $start, SaaSPlan $plan): CarbonInterface

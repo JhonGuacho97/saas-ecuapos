@@ -64,8 +64,26 @@ class SaaSSuperAdminController extends AppBaseController
 
     public function updateOrganization(Request $request, Organization $organization): JsonResponse
     {
-        $data = $request->validate(['is_active' => 'required|boolean']);
-        $organization->update($data);
+        $data = $request->validate([
+            'is_active' => 'required|boolean',
+            'suspension_reason' => ['nullable', Rule::in([
+                Organization::SUSPENSION_BILLING,
+                Organization::SUSPENSION_ADMINISTRATIVE,
+                Organization::SUSPENSION_SECURITY,
+            ])],
+            'suspension_note' => 'nullable|string|max:1000',
+        ]);
+        $organization->update($data['is_active'] ? [
+            'is_active' => true,
+            'suspension_reason' => null,
+            'suspended_at' => null,
+            'suspension_note' => null,
+        ] : [
+            'is_active' => false,
+            'suspension_reason' => $data['suspension_reason'] ?? Organization::SUSPENSION_ADMINISTRATIVE,
+            'suspended_at' => now(),
+            'suspension_note' => $data['suspension_note'] ?? null,
+        ]);
         return response()->json(['success' => true, 'data' => $organization, 'message' => 'Organización actualizada.']);
     }
 

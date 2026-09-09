@@ -21,6 +21,7 @@ dayjs.extend(localizedFormat);
 dayjs.extend(isoWeek);
 dayjs.extend(relativeTime);
 import { addHoldList } from "../../../store/action/pos/HoldListAction";
+import useReadOnlyMode, { READ_ONLY_MESSAGE } from "../../../hooks/useReadOnlyMode";
 
 const PaymentButton = (props) => {
     const {
@@ -41,6 +42,9 @@ const PaymentButton = (props) => {
         offlineMode,
     } = props;
     const dispatch = useDispatch();
+    // Cobrar y retener crean documentos; reiniciar el carrito es local y
+    // se deja disponible para poder limpiar la pantalla.
+    const readOnly = useReadOnlyMode();
     const qtyCart = updateProducts.filter((a) => a.quantity === 0);
     const [isReset, setIsReset] = useState(false);
     const [isHold, setIsHold] = useState(false);
@@ -154,9 +158,18 @@ const PaymentButton = (props) => {
         if (event.altKey && event.code === "KeyR") {
             return resetPaymentModel();
         } else if (event.altKey && event.code === "KeyS") {
+            // Alt+S y Alt+H no pasan por el botón, así que deshabilitarlo
+            // no alcanza: sin esta guarda el atajo abre igual el modal de
+            // cobro y el cajero recién se entera con el 402 al confirmar.
+            if (readOnly) {
+                return dispatch(addToast({ text: READ_ONLY_MESSAGE, type: toastType.WARNING }));
+            }
             return openPaymentModel();
         } else if (event.altKey && event.code === "KeyH") {
             event.preventDefault();
+            if (readOnly) {
+                return dispatch(addToast({ text: READ_ONLY_MESSAGE, type: toastType.WARNING }));
+            }
             return holdPaymentModel();
         }
     };
@@ -250,7 +263,8 @@ const PaymentButton = (props) => {
                 variant="anger"
                 className="pos-secondary-action pos-action-hold"
                 onClick={holdPaymentModel}
-                title={offlineMode ? "Disponible con conexión" : "Atajo: Alt + H"}
+                disabled={readOnly}
+                title={readOnly ? READ_ONLY_MESSAGE : (offlineMode ? "Disponible con conexión" : "Atajo: Alt + H")}
                 aria-disabled={offlineMode}
             >
                 {getFormattedMessage("pos.hold-list-btn.title")}{" "}
@@ -274,7 +288,8 @@ const PaymentButton = (props) => {
                 variant="success"
                 className="pos-checkout-button pos-pay-btn"
                 onClick={openPaymentModel}
-                title={offlineMode ? "Registrar cobro pendiente de sincronización" : "Atajo: Alt + S"}
+                disabled={readOnly}
+                title={readOnly ? READ_ONLY_MESSAGE : (offlineMode ? "Registrar cobro pendiente de sincronización" : "Atajo: Alt + S")}
             >
                 {offlineMode ? "Cobrar sin conexión" : getFormattedMessage("pos-pay-now.btn")}
                 <i className="ms-2 fa fa-money-bill" />

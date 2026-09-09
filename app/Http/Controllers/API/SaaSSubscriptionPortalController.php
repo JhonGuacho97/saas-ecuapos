@@ -41,29 +41,38 @@ class SaaSSubscriptionPortalController extends AppBaseController
             ? 'ORGANIZATION_INACTIVE'
             : ($canAccess ? 'ACTIVE' : ($status === 'MISSING' ? 'SUBSCRIPTION_MISSING' : 'SUBSCRIPTION_EXPIRED'));
 
+        // Tres modos, no dos. Una suscripción vencida NO es lo mismo que
+        // una organización suspendida: en la primera los datos siguen
+        // siendo del cliente y la API ya permite leerlos y exportarlos
+        // (EnsureActiveSubscription solo frena métodos de escritura), así
+        // que la app debe abrirse en modo consulta en vez de tapar todo
+        // con el muro de pago. El bloqueo total queda para cuando la
+        // plataforma desactiva la organización.
+        $accessMode = ! $organization->is_active
+            ? 'blocked'
+            : ($canAccess ? 'full' : 'read_only');
+        $canPurchase = $organization->is_active
+            || $organization->suspension_reason === Organization::SUSPENSION_BILLING;
+
         $pending = $subscription?->payments()->with('plan:id,name,price,currency,billing_interval')
             ->where('status', SaaSPayment::STATUS_PENDING)->latest('id')->first();
 
         $renewal = $this->renewalAvailability($subscription);
 
         $offlineAccessUntil = null;
-        if ($canAccess) {
-            $offlineAccessUntil = now()->addHours((int) config('saas.offline_lease_hours', 12));
-            $subscriptionEnd = $status === OrganizationSubscription::STATUS_TRIALING
-                ? $subscription?->trial_ends_at
-                : ($status === OrganizationSubscription::STATUS_PAST_DUE
-                    ? $subscription?->grace_ends_at
-                    : $subscription?->current_period_ends_at);
-            if ($subscriptionEnd && $subscriptionEnd->lessThan($offlineAccessUntil)) {
-                $offlineAccessUntil = $subscriptionEnd;
-            }
+        if ($canAccess && $entitlements->organizationCanWrite($organization->id)) {
+            $offlineAccessUntil = $entitlements->offlineLeaseExpiresAt($organization->id);
         }
 
         return response()->json(['success' => true, 'data' => [
             'can_access' => $canAccess,
+            'access_mode' => $accessMode,
             'can_manage' => $canManage,
             'reason' => $reason,
-            'organization' => $organization->only(['id', 'name', 'slug', 'is_active']),
+            'organization' => $organization->only([
+                'id', 'name', 'slug', 'is_active', 'suspension_reason', 'suspension_note',
+            ]),
+            'can_purchase' => $canPurchase,
             'subscription' => $summary,
             'current_plan_id' => $subscription?->saas_plan_id,
             'offline_access_until' => $offlineAccessUntil?->toIso8601String(),
@@ -82,8 +91,10 @@ class SaaSSubscriptionPortalController extends AppBaseController
                 'window_days' => $renewal['window_days'],
                 'available_at' => $renewal['available_at']?->toIso8601String(),
             ],
-            'plans' => SaaSPlan::where('is_active', true)->where('code', '!=', 'trial')
-                ->orderBy('sort_order')->orderBy('price')->get(),
+            'plans' => $canPurchase
+                ? SaaSPlan::where('is_active', true)->where('code', '!=', 'trial')
+                    ->orderBy('sort_order')->orderBy('price')->get()
+                : [],
         ]]);
     }
 
@@ -94,6 +105,12 @@ class SaaSSubscriptionPortalController extends AppBaseController
             $request->user('sanctum'),
             $organization
         ), 403, 'Solo un administrador de la organización puede gestionar la suscripción.');
+        abort_unless(
+            $organization->is_active
+                || $organization->suspension_reason === Organization::SUSPENSION_BILLING,
+            403,
+            'Esta organización fue suspendida administrativamente. Contacta con soporte.'
+        );
         $data = $request->validate([
             'saas_plan_id' => ['required', Rule::exists('saas_plans', 'id')->where(fn ($query) => $query
                 ->where('is_active', true)->where('code', '!=', 'trial'))],
@@ -119,7 +136,17 @@ class SaaSSubscriptionPortalController extends AppBaseController
         try {
             $payment = DB::transaction(function () use ($organization, $plan, $data, $request, &$path) {
                 $subscription = OrganizationSubscription::where('organization_id', $organization->id)
-                    ->lockForUpdate()->firstOrFail();
+                    ->lockForUpdate()->first();
+                if (! $subscription) {
+                    $subscription = OrganizationSubscription::create([
+                        'organization_id' => $organization->id,
+                        'saas_plan_id' => $plan->id,
+                        'status' => OrganizationSubscription::STATUS_EXPIRED,
+                        'starts_at' => now(),
+                        'auto_renew' => false,
+                        'cancel_at_period_end' => false,
+                    ]);
+                }
                 $duplicate = SaaSPayment::where('organization_subscription_id', $subscription->id)
                     ->where('submission_key', $data['submission_key'])->first();
                 if ($duplicate) {

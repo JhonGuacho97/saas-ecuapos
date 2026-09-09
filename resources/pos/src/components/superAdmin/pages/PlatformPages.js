@@ -23,6 +23,7 @@ import {
 import apiConfig from "../../../config/apiConfig";
 import api from "../api/superAdminApi";
 import PaymentProofModal from "../payments/PaymentProofModal";
+import OrganizationSuspensionModal from "../organizations/OrganizationSuspensionModal";
 import { formatDate as date, formatMoney as money, subscriptionStatusLabels as statusLabel } from "../utils/formatters";
 
 const IconBox = ({ icon, tone = "blue" }) => (
@@ -220,6 +221,7 @@ export function Organizations({ setNotice }) {
         [search, setSearch] = useState(""),
         [plans, setPlans] = useState([]),
         [selected, setSelected] = useState(null),
+        [suspending, setSuspending] = useState(null),
         [page, setPage] = useState(1);
     const load = useCallback(
         () => api.get("organizations", { search, page }).then(setResult),
@@ -233,10 +235,23 @@ export function Organizations({ setNotice }) {
         api.get("plans").then(setPlans);
     }, []);
     const toggle = async (org) => {
+        if (org.is_active) {
+            setSuspending(org);
+            return;
+        }
         await api.patch(`organizations/${org.id}`, {
-            is_active: !org.is_active,
+            is_active: true,
         });
         setNotice({ text: "Estado de la organización actualizado." });
+        load();
+    };
+    const suspend = async (context) => {
+        await api.patch(`organizations/${suspending.id}`, {
+            is_active: false,
+            ...context,
+        });
+        setSuspending(null);
+        setNotice({ text: "Organización suspendida con el motivo registrado." });
         load();
     };
     return (
@@ -345,6 +360,11 @@ export function Organizations({ setNotice }) {
                     }}
                 />
             )}
+            {suspending && <OrganizationSuspensionModal
+                organization={suspending}
+                onClose={() => setSuspending(null)}
+                onConfirm={suspend}
+            />}
         </section>
     );
 }

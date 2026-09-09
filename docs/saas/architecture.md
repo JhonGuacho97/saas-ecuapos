@@ -110,3 +110,7 @@ consultar sus datos, pero las peticiones que creen o modifiquen información
 responden con HTTP 402 y una causa estructurada. Desde el portal de suscripción
 puede elegir un plan, cargar un comprobante y recuperar la operación cuando el
 superadministrador aprueba el pago.
+
+El detalle de qué pasa exactamente al vencer —el corte sin gracia, los tres
+modos de acceso y qué sigue funcionando— está en
+[`vencimiento-y-modo-consulta.md`](vencimiento-y-modo-consulta.md).
