@@ -87,7 +87,14 @@ export const loginAction = (user, navigate, setLoading, onTwoFactorRequired) => 
 
             dispatch(addToast({ text: getFormattedMessage('login.success.message') }));
 
-            if (response.data.data.user.language && response.data.data.user.language !== previousLanguage) {
+            // En el primer ingreso todavía no existe un idioma previo en
+            // localStorage. Eso no es un cambio de idioma y, por tanto, no
+            // debe recargar la aplicación: el reload desmontaba el Header y
+            // cancelaba sus peticiones de arranque justo cuando se mostraba
+            // el panel por primera vez.
+            if (previousLanguage
+                && response.data.data.user.language
+                && response.data.data.user.language !== previousLanguage) {
                 window.location.reload();
             }
         })

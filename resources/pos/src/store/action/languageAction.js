@@ -210,9 +210,16 @@ export const fetchAllLanguage = () => async (dispatch) => {
                 payload: response.data.data,
             });
         })
-        .catch(({ response }) => {
-            dispatch(
-                addToast({ text: response.data.message, type: toastType.ERROR })
-            );
+        .catch((error) => {
+            // Una navegación, recarga o pérdida de conexión puede cancelar
+            // la petición antes de que Axios reciba una respuesta HTTP. En
+            // ese caso error.response no existe; intentar leer .data era el
+            // TypeError que ensuciaba el primer acceso al panel.
+            if (!error?.response) return;
+
+            dispatch(addToast({
+                text: error.response.data?.message || "No se pudieron cargar los idiomas.",
+                type: toastType.ERROR,
+            }));
         });
 };
