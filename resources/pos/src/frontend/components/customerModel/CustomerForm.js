@@ -13,7 +13,7 @@ import { useCustomerForm } from '../../../hooks/useCustomerFom';
 import '../../../components/customer/customer-credit.scss';
 
 const CustomerForm = (props) => {
-    const { show, hide, singleCustomer, offlineMode, onCustomerCreated, initialValues } = props;
+    const { show, hide, singleCustomer, offlineMode, onCustomerCreated, initialValues, onEditSubmit } = props;
 
     const createCustomer = async (values) => {
         const customer = await props.addCustomer(values, hide, { offlineMode });
@@ -38,7 +38,8 @@ const CustomerForm = (props) => {
     } = useCustomerForm({
         singleCustomer,
         addCustomerData: createCustomer,
-        editCustomer: props.editCustomer,
+        // En el POS la edición guarda sin salir de la venta (onEditSubmit).
+        editCustomer: onEditSubmit || props.editCustomer,
         id: singleCustomer?.[0]?.id,
         initialValues,
     });
@@ -56,7 +57,7 @@ const CustomerForm = (props) => {
         <Modal show={show} onHide={() => hide(false)} keyboard={true} size="lg">
             <Modal.Header closeButton>
                 <Modal.Title>
-                    {getFormattedMessage('customer.create.title')}
+                    {getFormattedMessage(singleCustomer ? 'customer.edit.title' : 'customer.create.title')}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-0">

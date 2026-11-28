@@ -4,12 +4,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faAddressCard,
     faMagnifyingGlass,
-    faUserPlus,
+    faPen,
     faUserGroup,
     faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { fetchAllCustomer } from '../../../store/action/customerAction';
 import { addToast } from '../../../store/action/toastAction';
+import { updatePosCustomer } from '../../../store/action/pos/customerAction';
+import CustomerForm from '../customerModel/CustomerForm';
 import { getOfflineCustomer, OFFLINE_CUSTOMERS_EVENT } from '../../../offline/catalogStorage';
 import CustomerSearchModal, { customerFacts, findCustomer, toCustomerOption } from './CustomerSearchModal';
 import './pos-customer-panel.scss';
@@ -36,11 +38,13 @@ const CustomerDropDown = (props) => {
         customerModel,
         offlineMode,
         addToast,
+        updatePosCustomer,
         warehouseSlot,
     } = props;
     const [quickValue, setQuickValue] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchSeed, setSearchSeed] = useState('');
+    const [editOpen, setEditOpen] = useState(false);
 
     useEffect(() => {
         const loadCustomers = async () => {
@@ -86,6 +90,23 @@ const CustomerDropDown = (props) => {
 
     const defaultCustomerId = settings?.attributes?.default_customer;
     const isDefault = facts.isFinalConsumer || String(selected?.value) === String(defaultCustomerId);
+
+    // Editar solo aplica a clientes reales ya guardados en el servidor: el
+    // consumidor final es genérico y los creados sin conexión todavía no
+    // existen allá.
+    const offlineStatus = customer?.attributes?.offline_status;
+    const editBlockReason = isDefault
+        ? 'El consumidor final no se edita'
+        : !customer || ['pending', 'syncing', 'requires_review'].includes(offlineStatus)
+            ? 'Este cliente aún no se sincroniza'
+            : offlineMode ? 'Editar requiere conexión' : null;
+
+    const editRecord = customer && [{ ...customer.attributes, id: customer.id }];
+
+    const saveEdit = async (id, values) => {
+        const updated = await updatePosCustomer(id, values, setEditOpen);
+        if (updated) setSelectedCustomerOption(toCustomerOption(updated));
+    };
 
     const openSearch = (seed) => {
         setQuickValue('');
@@ -163,9 +184,10 @@ const CustomerDropDown = (props) => {
                         title="Buscar cliente (F2)" aria-label="Buscar cliente">
                         <FontAwesomeIcon icon={faMagnifyingGlass} />
                     </button>
-                    <button type="button" className="pos-client__icon-btn is-primary" onClick={() => createCustomer()}
-                        title={offlineMode ? 'Crear cliente sin conexión' : 'Crear cliente'} aria-label="Crear cliente">
-                        <FontAwesomeIcon icon={faUserPlus} />
+                    <button type="button" className="pos-client__icon-btn is-primary" onClick={() => setEditOpen(true)}
+                        disabled={Boolean(editBlockReason)}
+                        title={editBlockReason || 'Editar cliente'} aria-label="Editar cliente">
+                        <FontAwesomeIcon icon={faPen} />
                     </button>
                 </div>
             </div>
@@ -188,6 +210,15 @@ const CustomerDropDown = (props) => {
                 <div className="pos-client__warehouse">{warehouseSlot}</div>
             </div>
 
+            {editOpen && editRecord && (
+                <CustomerForm
+                    show={editOpen}
+                    hide={setEditOpen}
+                    singleCustomer={editRecord}
+                    onEditSubmit={saveEdit}
+                />
+            )}
+
             {searchOpen && (
                 <CustomerSearchModal
                     customers={customers}
@@ -206,4 +237,4 @@ const mapStateToProps = (state) => {
     const { customers, settings } = state;
     return { customers, settings };
 };
-export default connect(mapStateToProps, { fetchAllCustomer, addToast })(CustomerDropDown);
+export default connect(mapStateToProps, { fetchAllCustomer, addToast, updatePosCustomer })(CustomerDropDown);

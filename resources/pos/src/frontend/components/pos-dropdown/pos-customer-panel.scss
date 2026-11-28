@@ -139,6 +139,14 @@
             outline: 2px solid rgba(21, 94, 239, .35);
             outline-offset: 1px;
         }
+
+        &:disabled,
+        &.is-primary:disabled {
+            background: #fff;
+            border-color: var(--client-border);
+            color: #b6bfcc;
+            cursor: not-allowed;
+        }
     }
 
     &__row {

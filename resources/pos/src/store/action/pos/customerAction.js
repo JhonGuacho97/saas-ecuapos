@@ -41,3 +41,37 @@ export const addCustomer = ( supplier, hide, options = {} ) => async ( dispatch 
             return null;
         } );
 };
+
+// Edición desde el POS: guarda y deja al cajero en la venta (la edición del
+// panel de Clientes redirige a la lista, acá no sirve).
+export const updatePosCustomer = ( customerId, values, hide ) => async ( dispatch ) => {
+    dispatch( setSavingButton( true ) );
+    const data = {
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        country: values.country,
+        city: values.city,
+        address: values.address,
+        identification: values.identification,
+        tipo_identificacion: values.tipo_identificacion,
+        credit_enabled: Boolean( values.credit_enabled ),
+        credit_limit: values.credit_enabled ? values.credit_limit : 0,
+        default_payment_terms_days: values.credit_enabled ? values.default_payment_terms_days : 0,
+    };
+    try {
+        const response = await apiConfig.patch( `${ apiBaseURL.CUSTOMERS }/${ customerId }`, data );
+        await dispatch( fetchAllCustomer() );
+        dispatch( addToast( { text: getFormattedMessage( 'customer.success.edit.message' ) } ) );
+        dispatch( setSavingButton( false ) );
+        hide?.( false );
+        return response.data.data;
+    } catch ( error ) {
+        dispatch( setSavingButton( false ) );
+        dispatch( addToast( {
+            text: error?.response?.data?.message || 'No se pudo actualizar el cliente.',
+            type: toastType.ERROR,
+        } ) );
+        return null;
+    }
+};
