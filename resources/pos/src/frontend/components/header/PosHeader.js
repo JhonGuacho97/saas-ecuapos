@@ -4,18 +4,22 @@ import WarehouseDropDown from "../pos-dropdown/WarehouseDropDown";
 import { Row } from "react-bootstrap-v5";
 
 const PosHeader = ( props ) => {
-    const { setSelectedCustomerOption, selectedCustomerOption, setSelectedOption, selectedOption, customerModel, updateCustomer, offlineMode } = props;
+    const { setSelectedCustomerOption, selectedCustomerOption, setSelectedOption, selectedOption, customerModel, offlineMode } = props;
 
     return (
         <div className='top-nav my-3'>
-            <Row className="align-items-center justify-content-between grp-select h-100">
-                <CustomerDropDown setSelectedCustomerOption={setSelectedCustomerOption}
-                    selectedCustomerOption={selectedCustomerOption} customerModel={customerModel}
-                    updateCustomer={updateCustomer} offlineMode={offlineMode} />
-
-                <WarehouseDropDown setSelectedOption={setSelectedOption}
-                    selectedOption={selectedOption} />
-            </Row>
+            <CustomerDropDown
+                setSelectedCustomerOption={setSelectedCustomerOption}
+                selectedCustomerOption={selectedCustomerOption}
+                customerModel={customerModel}
+                offlineMode={offlineMode}
+                warehouseSlot={
+                    <Row className="align-items-center justify-content-between grp-select h-100">
+                        <WarehouseDropDown setSelectedOption={setSelectedOption}
+                            selectedOption={selectedOption} />
+                    </Row>
+                }
+            />
         </div>
     )
 };

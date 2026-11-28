@@ -1,6 +1,6 @@
 // src/components/pos/CustomerForm.jsx
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
 import { connect } from 'react-redux';
@@ -13,7 +13,7 @@ import { useCustomerForm } from '../../../hooks/useCustomerFom';
 import '../../../components/customer/customer-credit.scss';
 
 const CustomerForm = (props) => {
-    const { show, hide, singleCustomer, offlineMode, onCustomerCreated } = props;
+    const { show, hide, singleCustomer, offlineMode, onCustomerCreated, initialValues } = props;
 
     const createCustomer = async (values) => {
         const customer = await props.addCustomer(values, hide, { offlineMode });
@@ -40,7 +40,17 @@ const CustomerForm = (props) => {
         addCustomerData: createCustomer,
         editCustomer: props.editCustomer,
         id: singleCustomer?.[0]?.id,
+        initialValues,
     });
+
+    // Si llega una cédula/RUC desde el buscador del POS, se consultan sus
+    // datos en el SRI de una vez para no tener que escribirlos.
+    useEffect(() => {
+        const identification = initialValues?.identification || '';
+        const tipo = initialValues?.tipo_identificacion;
+        const complete = (tipo === '05' && identification.length === 10) || (tipo === '04' && identification.length === 13);
+        if (complete && !offlineMode && !singleCustomer) handleSriLookup();
+    }, []);
 
     return (
         <Modal show={show} onHide={() => hide(false)} keyboard={true} size="lg">

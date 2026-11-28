@@ -14,7 +14,7 @@ import { addToast } from "../store/action/toastAction";
 import { Tokens } from "../constants";
 import { validarIdentificacion } from "../utils/identificacionValidator";
 
-export const useCustomerForm = ({ singleCustomer, addCustomerData, editCustomer, id }) => {
+export const useCustomerForm = ({ singleCustomer, addCustomerData, editCustomer, id, initialValues = null }) => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
@@ -33,6 +33,7 @@ export const useCustomerForm = ({ singleCustomer, addCustomerData, editCustomer,
         credit_enabled: Boolean(customerData?.credit_enabled),
         credit_limit: customerData?.credit_limit ?? "0.00",
         default_payment_terms_days: customerData?.default_payment_terms_days ?? 0,
+        ...(customerData ? {} : initialValues || {}),
     });
 
     const [errors, setErrors] = useState({});

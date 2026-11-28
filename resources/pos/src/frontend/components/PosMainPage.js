@@ -36,7 +36,6 @@ import {
 } from "../../store/action/pos/posAllProductAction";
 import TabTitle from "../../shared/tab-title/TabTitle";
 import HeaderAllButton from "./header/HeaderAllButton";
-import ShiftSalesCard from "./header/ShiftSalesCard";
 import RegisterDetailsModel from "./register-detailsModal/RegisterDetailsModel";
 import PrintRegisterDetailsData from "./printModal/PrintRegisterDetailsData";
 import {
@@ -157,6 +156,9 @@ const PosMainPage = (props) => {
     const [brandId, setBrandId] = useState();
     const [categoryId, setCategoryId] = useState();
     const [selectedCustomerOption, setSelectedCustomerOption] = useState(null);
+    // Datos con los que se abre el alta de cliente (p. ej. la cédula que se
+    // buscó en el POS y no existe todavía).
+    const [customerDraft, setCustomerDraft] = useState(null);
     const [selectedOption, setSelectedOption] = useState(null);
     warehouseIdRef.current = selectedOption?.value;
     const [pendingWarehouse, setPendingWarehouse] = useState(null);
@@ -199,7 +201,6 @@ const PosMainPage = (props) => {
     });
     const [showOfflineSales, setShowOfflineSales] = useState(false);
     // Se incrementa tras cada cobro para refrescar "Ventas del turno".
-    const [shiftSalesRefreshKey, setShiftSalesRefreshKey] = useState(0);
     // const [searchString, setSearchString] = useState('');
     const [showCloseDetailsModal, setShowCloseDetailsModal] = useState(false);
     const { closeRegisterDetails } = useSelector((state) => state);
@@ -971,7 +972,8 @@ const PosMainPage = (props) => {
     const addToCarts = useCallback((items) => setUpdateProducts(items), []);
 
     // create customer model
-    const customerModel = (val) => {
+    const customerModel = (val, draft = null) => {
+        setCustomerDraft(draft);
         setModalShowCustomer(val);
     };
 
@@ -1173,7 +1175,6 @@ const PosMainPage = (props) => {
             void Promise.resolve().then(() => requestOfflineSaleBackgroundSync()).catch(() => null);
             if (serverSale) {
                 void Promise.resolve().then(() => syncOfflineCatalog()).catch(() => null);
-                setShiftSalesRefreshKey((key) => key + 1);
             }
             return true;
         } catch (_) {
@@ -1411,16 +1412,6 @@ const PosMainPage = (props) => {
                     xxl={4}
                     className={`pos-order-panel pos-left-scs ${mobilePane === "cart" ? "pos-mobile-pane-active" : ""}`}
                 >
-                    <ShiftSalesCard
-                        warehouseId={selectedOption?.value}
-                        online={catalogStatus.online}
-                        pendingSales={catalogStatus.pendingSales}
-                        refreshKey={shiftSalesRefreshKey}
-                        itemCount={updateProducts.length}
-                        onOpenDetails={onClickDetailsModel}
-                        allConfigData={allConfigData}
-                        currencySymbol={frontSetting?.value?.currency_symbol}
-                    />
                     <div className="pos-context-card">
                         <PosHeader
                             setSelectedCustomerOption={setSelectedCustomerOption}
@@ -1428,7 +1419,6 @@ const PosMainPage = (props) => {
                             setSelectedOption={handleWarehouseChangeWithConfirm}
                             selectedOption={selectedOption}
                             customerModel={customerModel}
-                            updateCustomer={modalShowCustomer}
                             offlineMode={!catalogStatus.online}
                         />
                     </div>
@@ -1648,6 +1638,7 @@ const PosMainPage = (props) => {
                     show={modalShowCustomer}
                     hide={setModalShowCustomer}
                     offlineMode={!catalogStatus.online}
+                    initialValues={customerDraft}
                     onCustomerCreated={setSelectedCustomerOption}
                 />
             )}

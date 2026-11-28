@@ -2143,6 +2143,19 @@
         padding: 10px;
     }
 
+    // Primera tarjeta del panel del pedido: mismo aire arriba que la barra
+    // de búsqueda del catálogo (my-3), para que ambas columnas arranquen
+    // a la misma altura.
+    .pos-order-panel > .pos-context-card:first-child {
+        margin-top: 12px;
+    }
+
+    @media (max-width: 767px) {
+        .pos-order-panel > .pos-context-card:first-child {
+            margin-top: 10px;
+        }
+    }
+
     .pos-context-card .top-nav {
         height: auto !important;
         margin: 0 !important;
